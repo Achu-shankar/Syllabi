@@ -1,42 +1,161 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 14.5000%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 14.5000%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 14.5000%;
+    --primary: 0 0% 20.5000%;
+    --primary-foreground: 0 0% 98.5000%;
+    --secondary: 0 0% 97%;
+    --secondary-foreground: 0 0% 20.5000%;
+    --muted: 0 0% 97%;
+    --muted-foreground: 0 0% 55.6000%;
+    --accent: 0 0% 97%;
+    --accent-foreground: 0 0% 20.5000%;
+    --destructive: 0 80% 57.7000%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 92.2000%;
+    --input: 0 0% 50%;
+    --ring: 0 0% 70.8000%;
+    --chart-1: 41 78% 64.6000%;
+    --chart-2: 185 68% 60%;
+    --chart-3: 227 65% 39.8000%;
+    --chart-4: 84 63% 82.8000%;
+    --chart-5: 70 68% 76.9000%;
+    --sidebar: 0 0% 98.5000%;
+    --sidebar-foreground: 0 0% 14.5000%;
+    --sidebar-primary: 0 0% 20.5000%;
+    --sidebar-primary-foreground: 0 0% 98.5000%;
+    --sidebar-accent: 0 0% 97%;
+    --sidebar-accent-foreground: 0 0% 20.5000%;
+    --sidebar-border: 0 0% 92.2000%;
+    --sidebar-ring: 0 0% 70.8000%;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --radius: 0.625rem;
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  }
+  
+  .dark {
+    --background: 240 10% 3.9000%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9000%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9000%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9000% 10%;
+    --secondary: 240 3.7000% 15.9000%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7000% 15.9000%;
+    --muted-foreground: 240 5% 64.9000%;
+    --accent: 240 3.7000% 15.9000%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8000% 30.6000%;
+    --destructive-foreground: 0 85.7000% 97.3000%;
+    --border: 240 3.7000% 15.9000%;
+    --input: 240 3.7000% 15.9000%;
+    --ring: 240 4.9000% 83.9000%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55.0000%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55.0000%;
+    --sidebar: 240 5.9000% 10%;
+    --sidebar-foreground: 240 4.8000% 95.9000%;
+    --sidebar-primary: 224.3000 76.3000% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7000% 15.9000%;
+    --sidebar-accent-foreground: 240 4.8000% 95.9000%;
+    --sidebar-border: 240 3.7000% 15.9000%;
+    --sidebar-ring: 240 4.9000% 83.9000%;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --radius: 0.625rem;
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
+
+/* For Webkit browsers */
+::-webkit-scrollbar {
+  width: 4px; /* Width of the scrollbar */
+  height: 8px; /* Height of the scrollbar for horizontal scrollbars */
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted)); 
+  /* opacity: 0.1; */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(0, 4%, 89%); /* Color of the thumb */
+  opacity: 0.1; 
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary)); /* Color of the thumb on hover */
+}
+
+/* For Firefox */
+/* Apply to the element that has the scrollbar, often html or body */
+/* html {
+  scrollbar-width: thin; 
+  scrollbar-color: hsl(0 0% 80%) hsl(var(--muted)); 
+  scrollbar-border-radius: 10px;
+} */
+
+/* You might need to apply this to specific scrollable containers too */
+/* .your-scrollable-container {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--secondary-foreground)) hsl(var(--muted));
+} */
+
+/* If you want different scrollbars in different parts,
+   you can scope the ::-webkit-scrollbar styles like this: */
+/* .specific-area::-webkit-scrollbar {
+  width: 12px;
+}
+.specific-area::-webkit-scrollbar-thumb {
+  background: hsl(var(--accent-foreground));
+}
+.specific-area::-webkit-scrollbar-track {
+  background: hsl(var(--accent));
+}
+
+.specific-area {
+  scrollbar-width: auto;
+  scrollbar-color: hsl(var(--accent-foreground)) hsl(var(--accent));
+} */

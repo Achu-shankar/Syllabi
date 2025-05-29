@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Direct Pyodide Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/pyodide@0.27.5/pyodide.min.js"></script>
+  </head>
+  <body>
+    <h1>Direct Pyodide Test (Open in Browser)</h1>
+    <p>This file can be opened directly in your browser without a server.</p>
+    <p>Right-click on this file in Explorer and choose "Open with" your browser.</p>
+    
+    <div style="margin: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+      <p id="status">Checking Pyodide...</p>
+      <pre id="output" style="background-color: #f5f5f5; padding: 10px; border-radius: 5px;"></pre>
+      <p id="error" style="color: red;"></p>
+    </div>
+    
+    <script>
+      // Log for debugging
+      console.log("Script running, checking for loadPyodide...");
+      console.log("loadPyodide type:", typeof loadPyodide);
+      
+      const status = document.getElementById('status');
+      const output = document.getElementById('output');
+      const error = document.getElementById('error');
+      
+      async function runTest() {
+        try {
+          if (typeof loadPyodide !== 'function') {
+            throw new Error("loadPyodide function not available");
+          }
+          
+          status.textContent = "Loading Pyodide...";
+          const pyodide = await loadPyodide();
+          
+          status.textContent = "Running Python code...";
+          output.textContent = "Python Output:";
+          
+          // Capture stdout
+          pyodide.setStdout({
+            write: text => {
+              output.textContent += "\n" + text;
+            }
+          });
+          
+          // Run code
+          const result = pyodide.runPython(`
+            import sys
+            print("Python version:", sys.version)
+            print("Testing basic math: 7 × 6 =", 7 * 6)
+            
+            # Try importing a module
+            try:
+                import numpy as np
+                print("NumPy available:", np.__version__)
+            except ImportError:
+                print("NumPy not available (this is normal)")
+            
+            # Return a value
+            "Hello from Python! 🐍"
+          `);
+          
+          output.textContent += "\n\nReturned: " + result;
+          status.textContent = "✅ Test completed successfully!";
+          
+        } catch (err) {
+          console.error("Pyodide error:", err);
+          status.textContent = "❌ Test failed";
+          error.textContent = err.toString();
+          
+          // Check what globals are available
+          let globals = [];
+          for (let key in window) {
+            if (key.includes("pyodide") || key.includes("Pyodide")) {
+              globals.push(`${key}: ${typeof window[key]}`);
+            }
+          }
+          
+          if (globals.length > 0) {
+            output.textContent = "Found these Pyodide-related globals:\n" + globals.join("\n");
+          } else {
+            output.textContent = "No Pyodide-related globals found in window object";
+          }
+        }
+      }
+      
+      // Wait a moment to ensure the script has loaded
+      setTimeout(runTest, 500);
+    </script>
+  </body>
+</html> 

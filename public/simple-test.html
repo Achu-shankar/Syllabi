@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Minimal Pyodide Test</title>
+    <!-- Using the npm CDN version of Pyodide -->
+    <script src="https://cdn.jsdelivr.net/npm/pyodide@0.27.5/pyodide.min.js"></script>
+  </head>
+  <body>
+    <h1>Minimal Pyodide Test</h1>
+    <p>This page loads Pyodide from npm CDN and runs a simple Python calculation.</p>
+    <p id="output">Loading...</p>
+    <p id="error" style="color: red;"></p>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const output = document.getElementById('output');
+        const error = document.getElementById('error');
+        
+        // Check if loadPyodide exists
+        output.innerText = 'Checking for loadPyodide function...';
+        if (typeof loadPyodide !== 'function') {
+          error.innerText = 'Error: loadPyodide function not found';
+          output.innerText = 'Script loaded but loadPyodide function not found';
+          return;
+        }
+        
+        output.innerText = 'Found loadPyodide function, initializing...';
+        
+        // Run pyodide
+        async function runPyodide() {
+          try {
+            const pyodide = await loadPyodide();
+            output.innerText = 'Pyodide loaded successfully!';
+            output.innerText += '\n\nRunning Python code...';
+            
+            const result = pyodide.runPython(`
+              import sys
+              print(f"Python version: {sys.version}")
+              result = 7 * 6
+              print(f"7 × 6 = {result}")
+              result
+            `);
+            
+            output.innerText += `\n\nFinal result: ${result}`;
+          } catch (e) {
+            console.error(e);
+            error.innerText = `Error: ${e.message}`;
+          }
+        }
+        
+        runPyodide();
+      });
+    </script>
+  </body>
+</html> 

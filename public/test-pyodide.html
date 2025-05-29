@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Pyodide Simple Test</title>
+    <!-- Add defer attribute and onload/onerror handlers to detect script loading status -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js" 
+            defer 
+            onload="scriptLoaded()"
+            onerror="scriptError()"></script>
+  </head>
+  <body>
+    <h1>Pyodide Simple Test</h1>
+    <p id="output">Loading...</p>
+    <p id="error" style="color: red;"></p>
+    
+    <script type="text/javascript">
+      // Script loading handlers
+      function scriptLoaded() {
+        document.getElementById('output').innerText = 'Script loaded, initializing Pyodide...';
+        // Start main function after script is confirmed loaded
+        setTimeout(main, 100);
+      }
+      
+      function scriptError() {
+        document.getElementById('error').innerText = "Error: Failed to load Pyodide script";
+        console.error("Failed to load Pyodide script from CDN");
+      }
+      
+      async function main() {
+        try {
+          document.getElementById('output').innerText = 'Loading Pyodide...';
+          
+          // Check if loadPyodide is available and log it for debugging
+          console.log("loadPyodide available:", typeof loadPyodide);
+          
+          // Try both window.loadPyodide and global loadPyodide
+          const pyodideLoader = window.loadPyodide || loadPyodide;
+          
+          if (!pyodideLoader) {
+            throw new Error("loadPyodide function not found despite script loading");
+          }
+          
+          let pyodide = await pyodideLoader();
+          
+          document.getElementById('output').innerText = 'Pyodide loaded! Running 1 + 2:';
+          let result = pyodide.runPython("1 + 2");
+          document.getElementById('output').innerText += '\nResult: ' + result;
+          
+          // Try a more complex example
+          document.getElementById('output').innerText += '\n\nRunning a more complex example:';
+          result = pyodide.runPython(`
+            import sys
+            print(f"Python version: {sys.version}")
+            7 * 6
+          `);
+          document.getElementById('output').innerText += '\nPython multiplication result: ' + result;
+          
+        } catch (error) {
+          console.error('Pyodide error:', error);
+          document.getElementById('error').innerText = 'Error: ' + error.message;
+          
+          // Debug global object
+          console.log("Window properties related to Pyodide:");
+          for (let prop in window) {
+            if (prop.toLowerCase().includes("pyodide")) {
+              console.log(`- ${prop}: ${typeof window[prop]}`);
+            }
+          }
+        }
+      }
+      
+      // Don't auto-start main anymore, wait for script load confirmation
+      // main();
+    </script>
+  </body>
+</html> 
