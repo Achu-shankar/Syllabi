@@ -4,7 +4,14 @@ import "./globals.css";
 import Script from 'next/script';
 import { GA_TRACKING_ID } from '@/utils/analytics';
 import { Providers } from "./providers";
+import { Inter as FontSans } from 'next/font/google'
+
+const fontSans = FontSans({
+  subsets: ['latin'],
+  variable: '--font-sans'
+})
 // import AnalyticsProvider from './analytics-provider';
+
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -27,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geistSans.className} suppressHydrationWarning>
+    <html lang="en" className={fontSans.variable} suppressHydrationWarning>
       <head>
         {/* Global Site Tag (gtag.js) - Google Analytics */}
         <Script

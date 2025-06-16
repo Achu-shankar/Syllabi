@@ -11,7 +11,7 @@ export default function EbookPanel(){
     if (!isEbookPanelOpen) return null;
 
     return (
-        <div className="flex flex-col h-full bg-background border-l border-t">
+        <div className="flex flex-col h-full bg-background border-l">
             <EbookReader/>
         </div>
     )

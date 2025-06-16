@@ -1,59 +1,322 @@
 "use client";
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useRef } from 'react';
+import { useParams } from 'next/navigation';
+import { useFetchChatbotDetails } from './hooks/useChatbotSettings';
+import { useUpdateChatbotVisibility } from './hooks/useChatbotSharing';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { AlertCircle, Monitor, Smartphone, ExternalLink, RotateCcw, Lock, Globe, Users, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
+import { ChatbotVisibility } from '@/app/dashboard/libs/queries';
 
-// This page will eventually show a preview of the chatbot and some light stats
-export default function ChatbotOverviewPage({ params }: { params: { chatbotId: string } }) {
+type ViewMode = 'web' | 'mobile';
+
+export default function ChatbotOverviewPage() {
+  const params = useParams();
+  const chatbotId = params.chatbotId as string;
+  const [viewMode, setViewMode] = useState<ViewMode>('web');
+  const [visibilityPopoverOpen, setVisibilityPopoverOpen] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  
+  const { data: chatbot, isLoading, error } = useFetchChatbotDetails(chatbotId);
+  const { mutate: updateVisibility, isPending: isUpdatingVisibility } = useUpdateChatbotVisibility(chatbotId);
+
+  const handleReload = () => {
+    if (iframeRef.current) {
+      // Force reload by changing the src
+      const currentSrc = iframeRef.current.src;
+      iframeRef.current.src = '';
+      setTimeout(() => {
+        if (iframeRef.current) {
+          iframeRef.current.src = currentSrc;
+        }
+      }, 10);
+      toast.success('Chatbot reloaded');
+    }
+  };
+
+  const handleVisibilityChange = (newVisibility: ChatbotVisibility) => {
+    updateVisibility(newVisibility, {
+      onSuccess: () => {
+        toast.success(`Chatbot visibility changed to ${newVisibility}`);
+        setVisibilityPopoverOpen(false);
+      },
+      onError: (error) => {
+        toast.error('Failed to update visibility');
+      }
+    });
+  };
+
+  // Check if chatbot is accessible (not private)
+  const isAccessible = chatbot?.visibility !== 'private';
+
+  // Device dimensions and styling
+  const getDeviceStyle = () => {
+    if (viewMode === 'mobile') {
+      return {
+        width: '345px',
+        height: '667px', // iPhone-like proportions
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+        borderRadius: '24px',
+        border: '8px solid #1f2937', // Dark bezel
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+      };
+    } else {
+      return {
+        width: '960px',
+        height: '540px', // Laptop-like proportions
+        maxWidth: '90vw',
+        maxHeight: '80vh',
+        borderRadius: '12px',
+        border: '6px solid #374151', // Dark bezel
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+      };
+    }
+  };
+
+  // Get visibility display info
+  const getVisibilityDisplay = () => {
+    if (!chatbot) return null;
+    
+    switch (chatbot.visibility) {
+      case 'private':
+        return {
+          icon: Lock,
+          label: 'Private',
+          color: 'text-gray-600',
+          bgColor: 'bg-gray-100',
+          borderColor: 'border-gray-200'
+        };
+      case 'public':
+        return {
+          icon: Globe,
+          label: 'Public',
+          color: 'text-green-700',
+          bgColor: 'bg-green-100',
+          borderColor: 'border-green-200'
+        };
+      case 'shared':
+        return {
+          icon: Users,
+          label: 'Shared',
+          color: 'text-blue-700',
+          bgColor: 'bg-blue-100',
+          borderColor: 'border-blue-200'
+        };
+      default:
+        return null;
+    }
+  };
+
+  const visibilityDisplay = getVisibilityDisplay();
+  
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Chatbot Overview</h1>
-        <p className="text-muted-foreground">
-          Preview and key statistics for chatbot (ID: {params.chatbotId}).
-        </p>
-      </div>
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Chatbot Preview</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Test and interact with your chatbot in real-time
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {/* Reload Button */}
+            {!isLoading && chatbot && chatbot.shareable_url_slug && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReload}
+                className="h-8 px-3"
+                title="Reload chatbot"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Chatbot Preview</CardTitle>
-            <CardDescription>Interactive preview of your chatbot.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="w-full h-64 bg-muted rounded-md flex items-center justify-center">
-              <p className="text-muted-foreground">Chatbot Preview Area (Coming Soon)</p>
+            {/* Open Chatbot Button - Always show if shareable_url_slug exists */}
+            {!isLoading && chatbot && chatbot.shareable_url_slug && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`/chat/${chatbot.shareable_url_slug}`, '_blank')}
+                className="h-8 px-3"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open Chatbot
+              </Button>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <Button
+                variant={viewMode === 'web' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('web')}
+                className={`h-8 px-3 ${viewMode === 'web' ? 'bg-primary shadow-sm' : 'hover:bg-gray-200'}`}
+              >
+                <Monitor className="h-4 w-4 mr-2" />
+                Web
+              </Button>
+              <Button
+                variant={viewMode === 'mobile' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('mobile')}
+                className={`h-8 px-3 ${viewMode === 'mobile' ? 'bg-primary shadow-sm' : 'hover:bg-gray-200'}`}
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                Mobile
+              </Button>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Stats</CardTitle>
-            <CardDescription>Recent activity highlights.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p>Total Conversations: <span className="font-semibold">--</span></p>
-            <p>Messages Last 24h: <span className="font-semibold">--</span></p>
-            <p>Satisfaction Score: <span className="font-semibold">--%</span></p>
-            <Button variant="link" className="p-0 h-auto">View Full Analytics</Button> {/* Links to analytics page */} 
-          </CardContent>
-        </Card>
+            {/* Visibility Toggle Popover */}
+            {!isLoading && chatbot && visibilityDisplay && (
+              <Popover open={visibilityPopoverOpen} onOpenChange={setVisibilityPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-8 px-3 ${visibilityDisplay.bgColor} ${visibilityDisplay.color} ${visibilityDisplay.borderColor} border hover:opacity-80 transition-opacity`}
+                    disabled={isUpdatingVisibility}
+                  >
+                    <visibilityDisplay.icon className="h-4 w-4 mr-2" />
+                    {visibilityDisplay.label}
+                    <ChevronDown className="h-3 w-3 ml-2" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="end">
+                  <div className="p-4">
+                    <h4 className="font-medium text-sm mb-3">Change Visibility</h4>
+                    <RadioGroup
+                      value={chatbot.visibility}
+                      onValueChange={handleVisibilityChange}
+                      disabled={isUpdatingVisibility}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="private" id="private-option" />
+                        <Label htmlFor="private-option" className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Lock className="h-4 w-4 text-gray-600" />
+                          <div>
+                            <div className="font-medium">Private</div>
+                            <div className="text-xs text-muted-foreground">Only you can access</div>
+                          </div>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="public" id="public-option" />
+                        <Label htmlFor="public-option" className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Globe className="h-4 w-4 text-green-600" />
+                          <div>
+                            <div className="font-medium">Public</div>
+                            <div className="text-xs text-muted-foreground">Anyone with link</div>
+                          </div>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="shared" id="shared-option" />
+                        <Label htmlFor="shared-option" className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Users className="h-4 w-4 text-blue-600" />
+                          <div>
+                            <div className="font-medium">Shared</div>
+                            <div className="text-xs text-muted-foreground">Invited users only</div>
+                          </div>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className='flex flex-wrap gap-2'>
-            <Button variant="outline">View Library</Button>
-            <Button variant="outline">Customize Appearance</Button>
-            <Button variant="outline">Test Behavior</Button>
-            <Button variant="outline">Get Sharing Code</Button>
-        </CardContent>
-      </Card>
+      {/* Canvas Area */}
+      <div className="flex-1 relative overflow-hidden">
+        {/* Dotted Grid Background */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `radial-gradient(circle, #d1d5db 1px, transparent 1px)`,
+            backgroundSize: '20px 20px',
+            backgroundPosition: '10px 10px'
+          }}
+        />
+        
+        {/* Content Area */}
+        <div className="relative h-full flex items-center justify-center p-16">
+          {isLoading ? (
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-md w-full">
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-3/4 mx-auto" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            </div>
+          ) : error || !chatbot ? (
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-md w-full text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {error ? 'Failed to load chatbot' : 'Chatbot not found'}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {error instanceof Error ? error.message : 'The chatbot may not exist or you may not have access to it.'}
+              </p>
+            </div>
+          ) : !chatbot.shareable_url_slug ? (
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-md w-full text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No shareable URL
+              </h3>
+              <p className="text-sm text-gray-600">
+                This chatbot doesn't have a shareable URL configured yet.
+              </p>
+            </div>
+          ) : (
+            <div 
+              className="bg-white overflow-hidden transition-all duration-300 ease-in-out"
+              style={getDeviceStyle()}
+            >
+              <iframe
+                ref={iframeRef}
+                src={`/chat/${chatbot.shareable_url_slug}?preview=true&isolated=true`}
+                className="w-full h-full border-0"
+                title="Chatbot Preview"
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* Floating Status Indicator */}
+        {chatbot && visibilityDisplay && (
+          <div className="absolute top-4 left-4">
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${visibilityDisplay.bgColor} ${visibilityDisplay.color} ${visibilityDisplay.borderColor} border`}>
+              <div className={`w-2 h-2 rounded-full ${chatbot.visibility === 'private' ? 'bg-gray-400' : 'bg-green-500 animate-pulse'}`} />
+              <visibilityDisplay.icon className="h-3 w-3" />
+              {chatbot.visibility === 'private' ? 'Private - Owner Only' : 'Live Preview'}
+            </div>
+          </div>
+        )}
 
+        {/* Device Label */}
+        {chatbot && chatbot.shareable_url_slug && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-3 py-1 text-xs font-medium text-gray-600">
+              {viewMode === 'mobile' ? '📱 Mobile View' : '💻 Desktop View'}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

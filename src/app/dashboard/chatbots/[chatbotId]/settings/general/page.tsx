@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from "@/components/ui/switch";
 import { useFetchChatbotDetails, useUpdateChatbotSettings } from '../../hooks/useChatbotSettings';
-import { UpdateChatbotPayload, Chatbot } from '@/app/dashboard/libs/queries';
+import { UpdateChatbotPayload, Chatbot, ChatbotVisibility } from '@/app/dashboard/libs/queries';
 import { Separator } from "@/components/ui/separator";
 
 // Zod schema for validation
@@ -23,7 +23,7 @@ const generalSettingsSchema = z.object({
   student_facing_name: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   welcome_message: z.string().nullable().optional(),
-  published: z.boolean(),
+  visibility: z.enum(['private', 'public', 'shared'] as const),
 });
 
 type GeneralSettingsFormData = z.infer<typeof generalSettingsSchema>;
@@ -49,11 +49,11 @@ export default function ChatbotGeneralSettingsPage() {
       student_facing_name: null,
       description: null,
       welcome_message: null,
-      published: false,
+      visibility: 'private',
     }
   });
 
-  const publishedValue = watch("published");
+  const visibilityValue = watch("visibility");
 
   useEffect(() => {
     if (chatbot) {
@@ -62,17 +62,17 @@ export default function ChatbotGeneralSettingsPage() {
         student_facing_name: chatbot.student_facing_name ?? null,
         description: chatbot.description ?? null,
         welcome_message: chatbot.welcome_message ?? null,
-        published: chatbot.published ?? false,
+        visibility: chatbot.visibility ?? 'private',
       });
     }
   }, [chatbot, reset]);
 
-  const handlePublishToggle = (newPublishedStatus: boolean) => {
+  const handleVisibilityToggle = (newVisibility: ChatbotVisibility) => {
     updateSettings(
-      { published: newPublishedStatus }, 
+      { visibility: newVisibility }, 
       {
         onSuccess: (data) => {
-            toast.success(`Chatbot status changed to ${newPublishedStatus ? 'Published' : 'Unpublished'}.`);
+            toast.success(`Chatbot visibility changed to ${newVisibility}.`);
         },
       }
     );
@@ -84,7 +84,7 @@ export default function ChatbotGeneralSettingsPage() {
         student_facing_name: formData.student_facing_name ?? undefined,
         description: formData.description ?? undefined,
         welcome_message: formData.welcome_message ?? undefined,
-        published: formData.published,
+        visibility: formData.visibility,
     };
     updateSettings(payload);
   };
@@ -136,22 +136,22 @@ export default function ChatbotGeneralSettingsPage() {
         </div>
         <div className="flex items-center space-x-2 pt-1">
           <Controller
-            name="published"
+            name="visibility"
             control={control}
             render={({ field }) => (
               <Switch
-                id="publishedSwitch"
-                checked={field.value}
+                id="visibilitySwitch"
+                checked={field.value === 'public'}
                 onCheckedChange={(checked) => {
-                  field.onChange(checked);
-                  handlePublishToggle(checked);
+                  field.onChange(checked ? 'public' : 'private');
+                  handleVisibilityToggle(checked ? 'public' : 'private');
                 }}
-                aria-label="Published status"
+                aria-label="Visibility status"
               />
             )}
           />
-          <Label htmlFor="publishedSwitch" className="text-sm font-medium text-foreground">
-            {publishedValue ? "Published" : "Unpublished"}
+          <Label htmlFor="visibilitySwitch" className="text-sm font-medium text-foreground">
+            {visibilityValue === 'public' ? "Public" : visibilityValue === 'shared' ? "Shared" : "Private"}
           </Label>
         </div>
       </div>

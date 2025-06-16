@@ -12,6 +12,7 @@ import { MultimodalInput } from './multimodal-input';
 import { useFetchInitialMessages } from '../lib/hooks'; // Import the new hook
 import { generateUUID } from '../lib/utils';
 import { Messages } from './messages/messages';
+import { Greeting } from './messages/greeting';
 
 // Define local Attachment type if not exported by SDK
 type Attachment = {
@@ -99,44 +100,74 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
   return (
    
       <div 
-        className="flex-1 flex flex-col h-full w-full overflow-hidden"
+        className="flex-1 flex flex-col h-full w-full overflow-auto"
         style={{ 
           backgroundColor: 'var(--chat-chat-window-background-color,rgb(0, 0, 0))', 
           fontFamily: 'var(--chat-font-family, inherit)' 
         }}
       >
-        {/* <MessageList
-          key={`msg-${activeSessionId}`} // Key ensures component remounts on session change
-          sessionId={activeSessionId || ''}
-          messages={messages}
-          status={status}
-        /> */}
-        {/* <CodeRuntimesProvider> */}
-          <Messages
-            chatId={activeSessionId || ''}
-            status={status}
-            messages={messages}
-            setMessages={setMessages}
-            reload={reload}
-            isReadonly={false}
-          />
-        {/* </CodeRuntimesProvider> */}
-        <div className="w-full max-w-5xl mx-auto px-4">
-          <MultimodalInput
-            key={`input-${activeSessionId}`}
-            chatId={activeSessionId || ''}
-            chatbotSlug={chatbotSlug}
-            input={input}
-            setInput={setInput}
-            status={status}
-            stop={stop}
-            messages={messages}
-            setMessages={setMessages}
-            append={append}
-            handleSubmit={originalHandleSubmit}
-            className="px-4 py-3 border-t dark:border-zinc-700"
-          />
-        </div>
+        {messages.length === 0 ? (
+          // Centered layout for home page
+          <div className="flex-1 flex flex-col items-center w-full max-w-4xl mx-auto px-4 sm:px-10 pt-48 pb-8">
+            <div className="flex flex-col items-center w-full space-y-6 sm:space-y-8">
+              <Greeting />
+              <div className="w-full max-w-3xl">
+                <MultimodalInput
+                  key={`input-${activeSessionId}`}
+                  chatId={activeSessionId || ''}
+                  chatbotSlug={chatbotSlug}
+                  input={input}
+                  setInput={setInput}
+                  status={status}
+                  stop={stop}
+                  messages={messages}
+                  setMessages={setMessages}
+                  append={append}
+                  handleSubmit={originalHandleSubmit}
+                  className=""
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Regular chat layout
+          <>
+            {/* <MessageList
+              key={`msg-${activeSessionId}`} // Key ensures component remounts on session change
+              sessionId={activeSessionId || ''}
+              messages={messages}
+              status={status}
+            /> */}
+            {/* <CodeRuntimesProvider> */}
+            {messages.length > 0 && (
+              <Messages
+                chatId={activeSessionId || ''}
+                status={status}
+                messages={messages}
+                setMessages={setMessages}
+                reload={reload}
+                isReadonly={false}
+              />
+            )}
+            {/* </CodeRuntimesProvider> */}
+            <div className="w-full max-w-4xl mx-auto px-4 sm:px-10">
+              <MultimodalInput
+                key={`input-${activeSessionId}`}
+                chatId={activeSessionId || ''}
+                chatbotSlug={chatbotSlug}
+                input={input}
+                setInput={setInput}
+                status={status}
+                stop={stop}
+                messages={messages}
+                setMessages={setMessages}
+                append={append}
+                handleSubmit={originalHandleSubmit}
+                className="px-4 py-3 border-t dark:border-zinc-700"
+              />
+            </div>
+          </>
+        )}
       </div>
     
   );

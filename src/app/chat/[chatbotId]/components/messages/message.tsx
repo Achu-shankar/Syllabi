@@ -20,6 +20,7 @@ import { MessageEditor } from './message-editor';
 import { MessageReasoning } from './message-reasoning';
 import { UseChatHelpers } from '@ai-sdk/react';
 import Image from 'next/image';
+import { useChatConfig, useChatbotDisplayName } from '../../../contexts/ChatbotContext';
 
 const PurePreviewMessage = ({
   chatId,
@@ -39,37 +40,70 @@ const PurePreviewMessage = ({
   isReadonly: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const { chatbot } = useChatConfig();
+  const displayName = useChatbotDisplayName();
+
+  // Get avatar URLs from theme or use defaults
+  const getAvatarUrl = (role: 'user' | 'assistant') => {
+    if (role === 'assistant') {
+      return chatbot?.theme?.aiMessageAvatarUrl || null;
+    } else {
+      return chatbot?.theme?.userMessageAvatarUrl || null;
+    }
+  };
 
   return (
     <AnimatePresence>
       <motion.div
         data-testid={`message-${message.role}`}
-        className="w-full mx-auto max-w-4xl px-4 group/message"
+        className="w-full mx-auto max-w-4xl px-10 group/message relative"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role={message.role}
       >
+        {/* Avatar positioned absolutely outside content flow */}
+        {message.role === 'assistant' && (
+          <div className="absolute left-[-2.5] top-0 size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+            <div className="translate-y-px">
+              {getAvatarUrl('assistant') ? (
+                <div className="w-6 h-6 relative rounded-full overflow-hidden">
+                  <Image 
+                    src={getAvatarUrl('assistant')!} 
+                    alt={`${displayName} Logo`} 
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <SparklesIcon size={16} />
+              )}
+            </div>
+          </div>
+        )}
+
+        {message.role === 'user' && getAvatarUrl('user') && (
+          <div className="absolute right-[-2.5] top-0 size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+            <div className="w-6 h-6 relative rounded-full overflow-hidden">
+              <Image 
+                src={getAvatarUrl('user')!} 
+                alt="User Avatar" 
+                fill
+                className="object-cover"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Main content area - perfectly aligned */}
         <div
           className={cn(
-            'flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl',
+            'flex flex-col gap-4 w-full min-w-0',
             {
-              'w-full': mode === 'edit',
-              'group-data-[role=user]/message:w-fit': mode !== 'edit',
+              'ml-auto max-w-2xl': message.role === 'user',
+              'w-full': mode === 'edit' || message.role === 'assistant',
             },
           )}
         >
-          {message.role === 'assistant' && (
-            // <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
-              <div className="translate-y-px">
-                <SparklesIcon size={20}  />
-                {/* <div className="flex rounded-full items-center gap-2">
-                  <Image src="/logo.png" alt="Syllabi.io" width={20} height={20} />
-                </div> */}
-              {/* </div> */}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-4 w-full min-w-0">
             {message.experimental_attachments && (
               <div
                 data-testid={`message-attachments`}
@@ -122,7 +156,7 @@ const PurePreviewMessage = ({
 
                       <div
                         data-testid="message-content"
-                        className={cn('flex flex-col gap-4 min-w-0', {
+                      className={cn('flex flex-col gap-4 min-w-0 flex-1', {
                           'px-3 py-2 rounded-xl': message.role === 'user',
                         })}
                         style={message.role === 'user' ? {
@@ -163,37 +197,9 @@ const PurePreviewMessage = ({
                   const { args } = toolInvocation;
                   return(
                     <div key={toolCallId}>
-                      <p className='text-sm text-muted-foreground'>Searching DSPA knowledge base for {args.query}</p>
+                      <p className='text-sm text-muted-foreground'>Searching knowledge base for {args.query}</p>
                     </div>
                   )
-
-
-                  // return (
-                  //   <div
-                  //     key={toolCallId}
-                  //     className={cx({
-                  //       skeleton: ['getWeather'].includes(toolName),
-                  //     })}
-                  //   >
-                  //     {toolName === 'getWeather' ? (
-                  //       <Weather />
-                  //     ) : toolName === 'createDocument' ? (
-                  //       <DocumentPreview isReadonly={isReadonly} args={args} />
-                  //     ) : toolName === 'updateDocument' ? (
-                  //       <DocumentToolCall
-                  //         type="update"
-                  //         args={args}
-                  //         isReadonly={isReadonly}
-                  //       />
-                  //     ) : toolName === 'requestSuggestions' ? (
-                  //       <DocumentToolCall
-                  //         type="request-suggestions"
-                  //         args={args}
-                  //         isReadonly={isReadonly}
-                  //       />
-                  //     ) : null}
-                  //   </div>
-                  // );
                 }
 
                 if (state === 'result') {
@@ -203,33 +209,6 @@ const PurePreviewMessage = ({
                       <p className='text-sm text-muted-foreground'>Found {result.length} relevant documents ....</p>
                     </div>
                   )
-
-                  // return (
-                  //   <div key={toolCallId}>
-                  //     {toolName === 'getWeather' ? (
-                  //       <Weather weatherAtLocation={result} />
-                  //     ) : toolName === 'createDocument' ? (
-                  //       <DocumentPreview
-                  //         isReadonly={isReadonly}
-                  //         result={result}
-                  //       />
-                  //     ) : toolName === 'updateDocument' ? (
-                  //       <DocumentToolResult
-                  //         type="update"
-                  //         result={result}
-                  //         isReadonly={isReadonly}
-                  //       />
-                  //     ) : toolName === 'requestSuggestions' ? (
-                  //       <DocumentToolResult
-                  //         type="request-suggestions"
-                  //         result={result}
-                  //         isReadonly={isReadonly}
-                  //       />
-                  //     ) : (
-                  //       <pre>{JSON.stringify(result, null, 2)}</pre>
-                  //     )}
-                  //   </div>
-                  // );
                 }
               }
             })}
@@ -243,7 +222,6 @@ const PurePreviewMessage = ({
                 isLoading={isLoading}
               />
             )}
-          </div>
         </div>
       </motion.div>
     </AnimatePresence>
@@ -276,32 +254,46 @@ const fadeInStyle = `
 
 export const ThinkingMessage = () => {
   const role = 'assistant';
+  const { chatbot } = useChatConfig();
+  const displayName = useChatbotDisplayName();
+
+  // Get avatar URL from theme or use default
+  const getAvatarUrl = () => {
+    return chatbot?.theme?.aiMessageAvatarUrl || '/logo.png';
+  };
 
   return (
     <motion.div
       data-testid="message-assistant-loading"
-      className="w-full mx-auto max-w-3xl px-4 group/message "
+      className="w-full mx-auto max-w-4xl px-10 group/message relative"
       initial={{ y: 5, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
       data-role={role}
     >
       <style jsx>{fadeInStyle}</style>
-      <div
-        className={cx(
-          'flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl',
-          {
-            'group-data-[role=user]/message:bg-muted': true,
-          },
-        )}
-      >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
-          <SparklesIcon size={14} />
+      
+      {/* Avatar positioned absolutely outside content flow */}
+      <div className="absolute left-[-2.5] top-0 size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+        <div className="translate-y-px">
+          {getAvatarUrl() ? (
+            <div className="w-6 h-6 relative rounded-full overflow-hidden">
+              <Image 
+                src={getAvatarUrl()!} 
+                alt={`${displayName} Logo`} 
+                fill
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <SparklesIcon size={16} />
+          )}
+        </div>
         </div>
 
-        <div className="flex flex-col gap-2 w-full">
+      {/* Main content area - perfectly aligned */}
+      <div className="flex flex-col gap-4 w-full min-w-0">
           <div className="flex flex-col gap-4 text-muted-foreground fade-in-text">
             Hmm... I'm thinking...
-          </div>
         </div>
       </div>
     </motion.div>

@@ -44,8 +44,20 @@ const themeColorsSchema = z.object({
 // Updated Zod schema for ThemeConfig, using themeColorsSchema for light/dark
 const themeConfigSchema = z.object({
   fontFamily: z.string().optional(),
-  aiMessageAvatarUrl: z.string().url({ message: "Invalid URL for AI avatar." }).optional().nullable(),
-  userMessageAvatarUrl: z.string().url({ message: "Invalid URL for User avatar." }).optional().nullable(),
+  aiMessageAvatarUrl: z.string()
+    .optional()
+    .nullable()
+    .refine(value => {
+      if (value === null || value === undefined || value === "") return true;
+      return z.string().url().safeParse(value).success;
+    }, { message: "Please enter a valid URL for AI avatar or leave it empty." }),
+  userMessageAvatarUrl: z.string()
+    .optional()
+    .nullable()
+    .refine(value => {
+      if (value === null || value === undefined || value === "") return true;
+      return z.string().url().safeParse(value).success;
+    }, { message: "Please enter a valid URL for user avatar or leave it empty." }),
   light: themeColorsSchema,
   dark: themeColorsSchema,
 }).catchall(z.any());
@@ -89,10 +101,10 @@ export default function ChatbotAppearancePage() {
   } = useForm<AppearanceFormData>({
     resolver: zodResolver(appearanceSettingsSchema),
     defaultValues: {
-      student_facing_name: null,
-      branding_logo_url: null,
+      student_facing_name: '',
+      branding_logo_url: '',
       theme: defaultThemeConfig,
-      selectedThemeId: predefinedThemes[0].id, 
+      selectedThemeId: predefinedThemes[0].id,
       suggested_questions: [],
     }
   });
@@ -106,38 +118,39 @@ export default function ChatbotAppearancePage() {
 
   useEffect(() => {
     if (chatbot) {
-      let initialThemeConf = chatbot.theme as ThemeConfig | null;
-      // Check if the fetched theme is in the old flat format or null/incomplete
-      if (!initialThemeConf || !initialThemeConf.light || !initialThemeConf.dark) {
-        console.warn("Chatbot theme is in old format or missing. Initializing with default structure.");
-        const baseForMigration: any = initialThemeConf || {}; // Use any for migration flexibility
-        initialThemeConf = {
-          fontFamily: baseForMigration.fontFamily || defaultThemeConfig.fontFamily,
-          aiMessageAvatarUrl: baseForMigration.aiMessageAvatarUrl !== undefined ? baseForMigration.aiMessageAvatarUrl : defaultThemeConfig.aiMessageAvatarUrl,
-          userMessageAvatarUrl: baseForMigration.userMessageAvatarUrl !== undefined ? baseForMigration.userMessageAvatarUrl : defaultThemeConfig.userMessageAvatarUrl,
-          light: {
-            ...defaultThemeConfig.light,
-            primaryColor: baseForMigration.primaryColor || defaultThemeConfig.light.primaryColor,
-            headerTextColor: baseForMigration.headerTextColor || defaultThemeConfig.light.headerTextColor,
-            chatWindowBackgroundColor: baseForMigration.chatWindowBackgroundColor || defaultThemeConfig.light.chatWindowBackgroundColor,
-            bubbleUserBackgroundColor: baseForMigration.bubbleUserBackgroundColor || defaultThemeConfig.light.bubbleUserBackgroundColor,
-            bubbleBotBackgroundColor: baseForMigration.bubbleBotBackgroundColor || defaultThemeConfig.light.bubbleBotBackgroundColor,
-            inputBackgroundColor: baseForMigration.inputBackgroundColor || defaultThemeConfig.light.inputBackgroundColor,
-            inputTextColor: baseForMigration.inputTextColor || defaultThemeConfig.light.inputTextColor,
-          },
-          dark: {
-            ...defaultThemeConfig.dark,
-            // Example: if old themes had specific dark flat props, map them here
-            // primaryColor: baseForMigration.darkPrimaryColor || defaultThemeConfig.dark.primaryColor, 
-          },
-        };
+      const initialThemeConf = chatbot.theme && typeof chatbot.theme === 'object' ? chatbot.theme as ThemeConfig : defaultThemeConfig;
+      
+      // Check if there's a themeId in the saved theme config
+      const savedThemeId = initialThemeConf.themeId;
+      let initialSelectedThemeId = predefinedThemes[0].id; // Default to first theme instead of 'custom'
+      
+      console.log('Debug - chatbot.theme:', chatbot.theme);
+      console.log('Debug - savedThemeId:', savedThemeId);
+      
+      if (savedThemeId) {
+        // Check if the saved themeId exists in predefined themes
+        const matchingTheme = predefinedThemes.find(pt => pt.id === savedThemeId);
+        if (matchingTheme) {
+          initialSelectedThemeId = savedThemeId;
+          console.log('Debug - Found matching theme:', savedThemeId);
+        } else {
+          console.log('Debug - No matching predefined theme found for:', savedThemeId, 'using default');
+        }
+      } else {
+        // Fallback: try to match by comparing theme configs (legacy support)
+        const matchedTheme = predefinedThemes.find(pt => 
+          JSON.stringify(pt.config.light) === JSON.stringify(initialThemeConf?.light) &&
+          JSON.stringify(pt.config.dark) === JSON.stringify(initialThemeConf?.dark)
+        );
+        if (matchedTheme) {
+          initialSelectedThemeId = matchedTheme.id;
+          console.log('Debug - Using legacy detection, found:', initialSelectedThemeId);
+        } else {
+          console.log('Debug - No legacy match found, using default theme');
+        }
       }
-
-      const initialSelectedThemeId = predefinedThemes.find(pt => 
-        pt.config.fontFamily === initialThemeConf?.fontFamily && 
-        JSON.stringify(pt.config.light) === JSON.stringify(initialThemeConf?.light) &&
-        JSON.stringify(pt.config.dark) === JSON.stringify(initialThemeConf?.dark)
-      )?.id || 'custom';
+      
+      console.log('Debug - Setting initialSelectedThemeId to:', initialSelectedThemeId);
       
       reset({
         student_facing_name: chatbot.student_facing_name ?? '',
@@ -169,6 +182,10 @@ export default function ChatbotAppearancePage() {
   };
 
   const onSubmit: SubmitHandler<AppearanceFormData> = (formData) => {
+    console.log('Debug - Form submission data:', formData);
+    console.log('Debug - Theme being saved:', formData.theme);
+    console.log('Debug - Selected theme ID:', formData.selectedThemeId);
+    
     const finalBrandingLogoUrl = (formData.branding_logo_url === "" || formData.branding_logo_url === undefined) 
                                  ? null 
                                  : formData.branding_logo_url;
@@ -176,12 +193,27 @@ export default function ChatbotAppearancePage() {
                                  ? null 
                                  : formData.student_facing_name;
 
+    // Clean up avatar URLs - convert empty strings to null
+    const cleanedTheme = {
+      ...formData.theme,
+      aiMessageAvatarUrl: (formData.theme.aiMessageAvatarUrl === "" || formData.theme.aiMessageAvatarUrl === undefined) 
+                         ? null 
+                         : formData.theme.aiMessageAvatarUrl,
+      userMessageAvatarUrl: (formData.theme.userMessageAvatarUrl === "" || formData.theme.userMessageAvatarUrl === undefined) 
+                           ? null 
+                           : formData.theme.userMessageAvatarUrl,
+    };
+
+    console.log('Debug - Cleaned theme being saved:', cleanedTheme);
+
     const payload: UpdateChatbotPayload = {
         student_facing_name: finalStudentFacingName,
         logo_url: finalBrandingLogoUrl, 
-        theme: formData.theme,
+        theme: cleanedTheme,
         suggested_questions: formData.suggested_questions?.map(q => q.text),
     };
+    
+    console.log('Debug - Final payload:', payload);
     updateSettings(payload);
   };
 
@@ -202,8 +234,13 @@ export default function ChatbotAppearancePage() {
     return <div className="text-destructive max-w-7xl mx-auto p-6">Error: {fetchError.message}</div>;
   }
 
+  // Don't render the form until we have chatbot data
+  if (!chatbot) {
+    return <div className="max-w-7xl mx-auto p-6"><Skeleton className="h-96 w-full bg-muted" /></div>;
+  }
+
   return (
-    <div className="flex flex-col md:flex-row gap-8 max-w-7xl mx-auto">
+    <div className="flex flex-col md:flex-row gap-8 p-6 max-w-7xl mx-auto">
       <div className="flex-grow space-y-8 md:max-w-2xl">
         <div>
           <h1 className="text-2xl font-semibold text-foreground mb-2">Appearance & Interface</h1>
@@ -228,24 +265,39 @@ export default function ChatbotAppearancePage() {
             <Controller
               name="selectedThemeId"
               control={control}
-              render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => {
-                    field.onChange(value); 
-                    handleThemeChange(value); 
-                  }}
-                  value={field.value || predefinedThemes[0].id}
-                >
-                  <SelectTrigger className="w-full md:w-[280px]">
-                    <SelectValue placeholder="Select a theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {predefinedThemes.map(theme => (
-                      <SelectItem key={theme.id} value={theme.id}>{theme.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              render={({ field }) => {
+                console.log('Debug - Select field.value:', field.value);
+                console.log('Debug - Available themes:', predefinedThemes.map(t => ({ id: t.id, name: t.name })));
+                
+                // Ensure we always have a valid value
+                const currentValue = field.value && predefinedThemes.find(t => t.id === field.value) 
+                  ? field.value 
+                  : predefinedThemes[0].id;
+                
+                console.log('Debug - Using currentValue:', currentValue);
+                
+                return (
+                  <Select 
+                    onValueChange={(value) => {
+                      console.log('Debug - Theme changed to:', value);
+                      if (value && predefinedThemes.find(t => t.id === value)) {
+                        field.onChange(value); 
+                        handleThemeChange(value);
+                      }
+                    }}
+                    value={currentValue}
+                  >
+                    <SelectTrigger className="w-full md:w-[280px]">
+                      <SelectValue placeholder="Select a theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {predefinedThemes.map(theme => (
+                        <SelectItem key={theme.id} value={theme.id}>{theme.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              }}
             />
             {errors.selectedThemeId?.message && <p className="mt-1 text-xs text-destructive">{errors.selectedThemeId.message}</p>}
             {/* Simplified theme error display */}

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'; // Added useState for dialog
 import Link from 'next/link'; // Added for future navigation
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Bot, BookOpen, MessageSquare, Feather, Brain, Zap, Settings2, Palette, Edit3, Trash2, FileText } from 'lucide-react'; // Added more icons
+import { PlusCircle, MoreHorizontal, Bot, BookOpen, MessageSquare, Feather, Brain, Zap, Settings2, Palette, Edit3, Trash2, FileText, ExternalLink, Link2, Copy } from 'lucide-react'; // Added ExternalLink icon
 import { useFetchChatbots } from './hooks/useFetchChatbots'; // Import the custom hook
 import { CreateChatbotDialog } from './components/create-chatbot-dialog'; // Import the dialog
 import { EditChatbotDialog } from './components/edit-chatbot-dialog'; // Import Edit Dialog
@@ -101,6 +101,16 @@ export default function DashboardOverviewPage() {
     setIsDeleteDialogOpen(true);
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // You could add a toast notification here for better UX
+      alert("Link copied to clipboard!");
+    }).catch(err => {
+      console.error("Failed to copy: ", err);
+      alert("Failed to copy to clipboard.");
+    });
+  };
+
     return (
     <>
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
@@ -149,29 +159,56 @@ export default function DashboardOverviewPage() {
                     <div className="p-2 bg-white/30 dark:bg-black/20 backdrop-blur-sm rounded-lg">
                         <GetDeterministicIcon id={chatbot.id} />
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-gray-600 dark:text-gray-400 hover:bg-white/20 dark:hover:bg-black/10 h-8 w-8">
-                            <MoreHorizontal className="h-5 w-5" />
-                            <span className="sr-only">More options</span>
+                    <div className="flex gap-1">
+                      {/* Direct Chat Button */}
+                      {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-gray-600 dark:text-gray-400 hover:bg-white/20 dark:hover:bg-black/10 h-8 w-8"
+                          asChild
+                        >
+                          <Link href={`/chat/${chatbot.shareable_url_slug}`} target="_blank" title="Go to Chatbot">
+                            <ExternalLink className="h-4 w-4" />
+                            <span className="sr-only">Go to Chatbot</span>
+                          </Link>
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => openEditDialog(chatbot)}>
-                          <Edit3 className="mr-2 h-4 w-4" />
-                          Rename / Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => openDeleteDialog(chatbot)} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/50">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-gray-600 dark:text-gray-400 hover:bg-white/20 dark:hover:bg-black/10 h-8 w-8">
+                              <MoreHorizontal className="h-5 w-5" />
+                              <span className="sr-only">More options</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
+                            <>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/chat/${chatbot.shareable_url_slug}`} target="_blank" className="flex items-center w-full">
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Go to Chatbot
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          <DropdownMenuItem onClick={() => openEditDialog(chatbot)}>
+                            <Edit3 className="mr-2 h-4 w-4" />
+                            Rename / Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => openDeleteDialog(chatbot)} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/50">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
 
-                  <Link href={`/dashboard/chatbots/${chatbot.id}/library`} passHref legacyBehavior className="flex flex-col flex-grow">
+                  <Link href={`/dashboard/chatbots/${chatbot.id}/`} passHref legacyBehavior className="flex flex-col flex-grow">
                     <a className="block cursor-pointer flex flex-col flex-grow">
                       <h2 
                         className="text-xl font-semibold mb-1 truncate text-gray-800 dark:text-white group-hover:text-primary transition-colors"
@@ -190,10 +227,46 @@ export default function DashboardOverviewPage() {
                       </p>
                     </a>
                   </Link>
-                  {/* Manage button can be part of the clickable card area or removed if card itself is the link */}
-                   {/* <Button variant="outline" className="w-full mt-4 bg-white/50 dark:bg-black/30 backdrop-blur-sm border-gray-400/50 hover:bg-white/70 dark:hover:bg-black/50 text-gray-700 dark:text-gray-200" asChild>
-                     <Link href={`/dashboard/chatbots/${chatbot.id}/library`}>Manage Chatbot</Link>
-                  </Button> */}
+
+                  {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Link2 className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Share</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(`${window.location.origin}/chat/${chatbot.shareable_url_slug}`)}
+                          className="h-8"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Link
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Open</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`/chat/${chatbot.shareable_url_slug}`, '_blank')}
+                          className="h-8"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

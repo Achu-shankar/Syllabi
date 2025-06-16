@@ -8,9 +8,10 @@ import Link from 'next/link';
 interface ChatbotNotFoundProps {
   slug?: string;
   error?: string | null;
+  isNotFound?: boolean;
 }
 
-export function ChatbotNotFound({ slug, error }: ChatbotNotFoundProps) {
+export function ChatbotNotFound({ slug, error, isNotFound }: ChatbotNotFoundProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center">
@@ -55,13 +56,10 @@ export function ChatbotNotFound({ slug, error }: ChatbotNotFoundProps) {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Chatbot Not Found
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-2">
-              {error ? 
-                (error.includes('not found') || error.includes('404') ? 
-                  "The chatbot you're looking for doesn't exist or is not published." :
-                  `Error loading chatbot: ${error}`
-                ) : 
-                "The chatbot you're looking for doesn't exist or is not published."
+            <p className="text-gray-600 mb-6">
+              {isNotFound ?
+                "The chatbot you're looking for doesn't exist or you don't have access to it." :
+                "The chatbot you're looking for doesn't exist or you don't have access to it."
               }
             </p>
             {slug && (

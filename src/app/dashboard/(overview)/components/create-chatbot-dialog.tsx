@@ -14,7 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateChatbot } from "../hooks/useCreateChatbot";
-import { CreateChatbotPayload } from '@/app/dashboard/libs/queries';
+import { CreateChatbotPayload, ThemeConfig } from '@/app/dashboard/libs/queries';
+import { predefinedThemes } from '@/app/dashboard/chatbots/[chatbotId]/settings/appearance/themes';
 import { Loader2 } from 'lucide-react'; // For loading spinner
 import { toast } from "sonner"; // Import toast from sonner
 
@@ -23,6 +24,31 @@ interface CreateChatbotDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void; // Optional: Callback on successful creation
 }
+
+/**
+ * Default values for new chatbots to ensure a good out-of-the-box experience.
+ * These values provide:
+ * - Cost-effective AI model (gpt-4o-mini)
+ * - Balanced creativity (temperature 0.7)
+ * - Professional, accessible theme (uses default from themes.ts)
+ * - Friendly default system prompt
+ * - Helpful suggested questions
+ * - Private visibility for safety (user can change to public/shared later)
+ */
+const getDefaultChatbotValues = (): Partial<CreateChatbotPayload> => ({
+  ai_model_identifier: 'gpt-4o-mini', // Default to the most cost-effective model
+  system_prompt: 'You are a helpful and friendly AI assistant. Respond clearly and concisely while maintaining a warm, approachable tone.',
+  temperature: 0.7, // Balanced creativity
+  theme: predefinedThemes[0].config, // Use the first predefined theme (Syllabi Default)
+  welcome_message: "Hello! I'm here to help you with any questions you might have. How can I assist you today?",
+  suggested_questions: [
+    "How can you help me?",
+    "What topics can you assist with?",
+    "Tell me more about your capabilities"
+  ],
+  visibility: 'private', // Start as private - user can change later
+  is_active: true, // Active by default
+});
 
 export function CreateChatbotDialog({ open, onOpenChange, onSuccess }: CreateChatbotDialogProps) {
   const [name, setName] = useState("");
@@ -50,11 +76,12 @@ export function CreateChatbotDialog({ open, onOpenChange, onSuccess }: CreateCha
       user_id: '', // This will be set on the server
       name: name.trim(),
       student_facing_name: studentFacingName.trim() || undefined,
+      ...getDefaultChatbotValues(),
     };
 
     try {
       await createChatbotMutation.mutateAsync(payload);
-      toast.success(`Chatbot "${payload.name}" created successfully!`);
+      toast.success(`Chatbot "${payload.name}" created with intelligent defaults! You can customize it in the settings.`);
       setName("");
       setStudentFacingName("");
       onOpenChange(false);
@@ -85,7 +112,7 @@ export function CreateChatbotDialog({ open, onOpenChange, onSuccess }: CreateCha
         <DialogHeader>
           <DialogTitle>Create New Chatbot</DialogTitle>
           <DialogDescription>
-            Give your new chatbot a name to get started. You can customize it further later.
+            Give your new chatbot a name to get started. We'll set up intelligent defaults for AI model, theme, and behavior that you can customize later.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">

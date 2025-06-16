@@ -102,19 +102,19 @@ const createMarkdownComponents = (citationMap: React.MutableRefObject<Map<string
     let citationNumber;
     try {
       const parsedContent = JSON.parse(jsonContent);
-      // Assuming the content is an array and we take the first item's source_id
-      const sourceId = parsedContent?.[0]?.source_id;
+      // Assuming the content is an array and we take the first item's reference_id
+      const referenceId = parsedContent?.[0]?.reference_id;
 
-      if (!sourceId) {
-        console.error("SourceCite: source_id not found in JSON content", jsonContent);
+      if (!referenceId) {
+        console.error("SourceCite: reference_id not found in JSON content", jsonContent);
         return <span className="text-red-500">[Malformed SourceCite Tag - No ID]</span>;
       }
 
-      if (citationMap.current.has(sourceId)) {
-        citationNumber = citationMap.current.get(sourceId)!;
+      if (citationMap.current.has(referenceId)) {
+        citationNumber = citationMap.current.get(referenceId)!;
       } else {
         citationNumber = citationMap.current.size + 1;
-        citationMap.current.set(sourceId, citationNumber);
+        citationMap.current.set(referenceId, citationNumber);
       }
     } catch (error) {
       console.error("Error parsing SourceCite JSON content:", error, jsonContent);
@@ -256,7 +256,7 @@ export const MemoizedMarkdown = memo(
     // Split content into blocks using marked tokenizer - memoized
     const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
     
-    // Ref to keep track of citation numbers for unique source_ids within a single message
+    // Ref to keep track of citation numbers for unique reference_ids within a single message
     const citationIdMap = useRef<Map<string, number>>(new Map());
     
     // Reset counter when content/id changes (new message) using useEffect

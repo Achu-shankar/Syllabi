@@ -1,0 +1,63 @@
+/* Chat Sidebar Theme Override */
+[data-chat-sidebar="true"] [data-sidebar="sidebar"] {
+  background-color: var(--chat-sidebar-background-color) !important;
+  color: var(--chat-sidebar-text-color) !important;
+}
+
+/* Override any bg-sidebar classes inside chat sidebar */
+[data-chat-sidebar="true"] .bg-sidebar {
+  background-color: var(--chat-sidebar-background-color) !important;
+}
+
+/* Ensure theme colors cascade properly */
+[data-chat-sidebar="true"] * {
+  --sidebar: var(--chat-sidebar-background-color);
+} 
+
+/* Global scrollbar styling for entire chat page */
+html ::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+html ::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+html ::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.1) !important;
+  border-radius: 4px;
+}
+
+html ::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.1) !important;
+}
+
+/* Dark theme scrollbars */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(200, 200, 200, 0.2) !important;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 200, 200, 0.4) !important;
+}
+
+/* Firefox scrollbar styling */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.1) transparent;
+}
+
+[data-theme="dark"] {
+  scrollbar-color: rgba(200, 200, 200, 0.2) transparent;
+} 
+
+/* Panel Resize Handle Styling */
+.panel-resize-handle:hover {
+  background-color: var(--hover-color) !important;
+}
+
+.panel-resize-handle:active,
+.panel-resize-handle[data-resize-handle-state="drag"] {
+  background-color: var(--active-color) !important;
+} 

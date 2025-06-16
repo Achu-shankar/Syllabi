@@ -1,5 +1,5 @@
-  import { NextRequest, NextResponse } from 'next/server';
-  import { createClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 import {
     getMessages,
     saveOrUpdateChatMessages,
@@ -16,6 +16,10 @@ export async function GET(
   const supabase = await createClient();
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    
+    // For now, we require authentication to fetch messages
+    // In the future, we might allow fetching anonymous session messages 
+    // for the same browser session
     if (!user) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
@@ -25,8 +29,9 @@ export async function GET(
       return new NextResponse('Missing sessionId parameter', { status: 400 });
     }
 
-    // Optional TODO: Add explicit access check if needed
-    // const hasAccess = await verifySessionAccess(userId, sessionId);
+    // TODO: Add explicit access check to ensure user owns the session
+    // For now, we rely on RLS policies to handle this
+    // const hasAccess = await verifySessionAccess(user.id, sessionId);
     // if (!hasAccess) {
     //   return new NextResponse('Forbidden', { status: 403 });
     // }
@@ -54,24 +59,16 @@ export async function POST(
   const supabase = await createClient();
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-
     
-    const sessionId = await params.sessionId;
+    // Allow both authenticated and anonymous users to save messages
+    const userId = user?.id || null;
+
+    const sessionId = params.sessionId;
     if (!sessionId) {
       return new NextResponse('Missing sessionId parameter', { status: 400 });
     }
 
-    // Optional TODO: Add explicit access check if needed
-    // const hasAccess = await verifySessionAccess(userId, sessionId);
-    // if (!hasAccess) {
-    //   return new NextResponse('Forbidden', { status: 403 });
-    // }
-
-    // Parse the message pair from the request body
-    // Assuming body format is { messages: [userMessage, assistantMessage] }
+    // Parse the message data from the request body
     let requestBody;
     try {
          requestBody = await request.json();
@@ -79,26 +76,23 @@ export async function POST(
         return new NextResponse('Invalid JSON body', { status: 400 });
     }
 
-    // Extract messages AND projectId AND chatbotSlug from the body
+    // Extract messages, chatbotSlug, and tokenCount from the body
     const messagesToSave: Message[] = requestBody?.messages;
-    const projectId: string | undefined = requestBody?.projectId;
     const chatbotSlug: string | undefined = requestBody?.chatbotSlug;
+    const tokenCount: number = requestBody?.tokenCount || 0;
 
     if (!messagesToSave || !Array.isArray(messagesToSave) || messagesToSave.length === 0) {
         return new NextResponse('Invalid or missing messages array in request body', { status: 400 });
     }
-    // Also validate projectId and chatbotSlug
-    if (!projectId) {
-         return new NextResponse('Missing projectId in request body', { status: 400 });
-    }
+    
     if (!chatbotSlug) {
          return new NextResponse('Missing chatbotSlug in request body', { status: 400 });
     }
 
-    console.log(`[API POST /messages] User: ${user.id}, Session: ${sessionId}, Project: ${projectId}, Chatbot: ${chatbotSlug}, Messages: ${messagesToSave.length}`);
+    console.log(`[API POST /messages] User: ${userId || 'anonymous'}, Session: ${sessionId}, Chatbot: ${chatbotSlug}, Messages: ${messagesToSave.length}`);
 
-    // Call the save function with projectId and chatbotSlug from the body
-    await saveOrUpdateChatMessages(user.id, projectId, chatbotSlug, messagesToSave);
+    // Call the save function with the correct parameters
+    await saveOrUpdateChatMessages(userId, sessionId, chatbotSlug, messagesToSave, tokenCount);
 
     // Return success status
     return new NextResponse(null, { status: 201 });

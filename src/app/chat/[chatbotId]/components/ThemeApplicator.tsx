@@ -66,6 +66,11 @@ export function ThemeApplicator() {
     applyTransitions();
     applyColors(colors);
 
+    // IMPORTANT: Override the global --sidebar variable used by bg-sidebar class
+    if (colors.sidebarBackgroundColor) {
+      root.style.setProperty('--sidebar', colors.sidebarBackgroundColor);
+    }
+
     // Apply font family if specified
     if (chatbotTheme.fontFamily) {
       root.style.setProperty('--chat-font-family', chatbotTheme.fontFamily);
@@ -86,6 +91,8 @@ export function ThemeApplicator() {
     return () => {
       const themeVars = Array.from(root.style).filter(prop => prop.startsWith('--chat-'));
       themeVars.forEach(prop => root.style.removeProperty(prop));
+      // Also reset the global sidebar variable
+      root.style.removeProperty('--sidebar');
     };
   }, [chatbotTheme, resolvedTheme]);
 

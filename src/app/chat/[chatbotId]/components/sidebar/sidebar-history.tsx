@@ -3,7 +3,7 @@
 import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import { useParams, useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Pencil, Trash2, MessageSquare, MoreHorizontal } from 'lucide-react';
 import {
@@ -36,6 +36,17 @@ import type { ChatSession } from '../../lib/db/queries';
 import { formatDistanceToNow } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { createClient } from '@/utils/supabase/client';
+import { useChatThemeVars } from '../ThemeApplicator';
+
+interface User {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+    avatar_url?: string;
+  };
+}
 
 type GroupedChats = {
   today: ChatSession[];
@@ -79,8 +90,6 @@ const groupChatsByDate = (chats: ChatSession[]): GroupedChats => {
 };
 
 interface SidebarHistoryProps {
-  user: any;
-  sidebarState: string;
 }
 
 interface ChatItemGroupProps {
@@ -184,7 +193,10 @@ function ChatItemGroup({
   );
 }
 
-export function SidebarHistory({ user, sidebarState }: SidebarHistoryProps) {
+export function SidebarHistory() {
+  const [user, setUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const { state } = useSidebar();
   const params = useParams();
   const chatbotSlug = params.chatbotId as string;
   const activeChatId = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -194,13 +206,31 @@ export function SidebarHistory({ user, sidebarState }: SidebarHistoryProps) {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingChatName, setEditingChatName] = useState('');
   const [hoveredChatId, setHoveredChatId] = useState<string | null>(null);
+  
+  // Get theme variables for dynamic styling
+  const themeVars = useChatThemeVars();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error("Error fetching user:", error);
+        setUserLoading(false);
+        return;
+      }
+      setUser(data.user as User | null);
+      setUserLoading(false);
+    };
+    fetchUser();
+  }, []);
 
   // Use the hooks for session list and mutations
   const { sessions, isLoading, error } = useFetchSessionList(user?.id || '', chatbotSlug);
   const deleteSessionMutation = useDeleteSession();
   const renameSessionMutation = useRenameSession();
 
-  const isCollapsed = sidebarState === "collapsed";
+  const isCollapsed = state === "collapsed";
 
   const handleDeleteClick = (chatId: string) => {
     setDeleteId(chatId);
@@ -267,6 +297,36 @@ export function SidebarHistory({ user, sidebarState }: SidebarHistoryProps) {
     setHoveredChatId(null);
   };
 
+  // Show loading while user is being fetched
+  if (userLoading) {
+    if (isCollapsed) return null;
+    
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel>Loading...</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <div className="flex flex-col">
+            {[44, 32, 28].map((item, index) => (
+              <div
+                key={index}
+                className="rounded-md h-8 flex gap-2 px-2 items-center"
+              >
+                <div
+                  className="h-4 rounded-md flex-1 max-w-[--skeleton-width] bg-sidebar-accent-foreground/10"
+                  style={
+                    {
+                      '--skeleton-width': `${item}%`,
+                    } as React.CSSProperties
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
+
   if (!user) {
     return (
       <SidebarGroup>
@@ -317,7 +377,7 @@ export function SidebarHistory({ user, sidebarState }: SidebarHistoryProps) {
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="px-2 text-zinc-500 w-full flex flex-row justify-center items-center text-sm gap-2">
-            Your conversations will appear here once you start chatting!
+            No chat history yet!
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -344,39 +404,79 @@ export function SidebarHistory({ user, sidebarState }: SidebarHistoryProps) {
     router,
   };
 
+  // Hide entire history when sidebar is collapsed
+  if (isCollapsed) {
+    return null;
+  }
+
   return (
     <>
       {groupedChats.today.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Today</SidebarGroupLabel>
+          <SidebarGroupLabel 
+            style={{ 
+              color: themeVars.sidebarTextColor,
+              opacity: 0.7 
+            }}
+          >
+            Today
+          </SidebarGroupLabel>
           <ChatItemGroup chats={groupedChats.today} chatbotSlug={chatbotSlug} {...chatItemGroupProps} />
         </SidebarGroup>
       )}
 
       {groupedChats.yesterday.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Yesterday</SidebarGroupLabel>
+          <SidebarGroupLabel 
+            style={{ 
+              color: themeVars.sidebarTextColor,
+              opacity: 0.7 
+            }}
+          >
+            Yesterday
+          </SidebarGroupLabel>
           <ChatItemGroup chats={groupedChats.yesterday} chatbotSlug={chatbotSlug} {...chatItemGroupProps} />
         </SidebarGroup>
       )}
 
       {groupedChats.lastWeek.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Last 7 days</SidebarGroupLabel>
+          <SidebarGroupLabel 
+            style={{ 
+              color: themeVars.sidebarTextColor,
+              opacity: 0.7 
+            }}
+          >
+            Last 7 days
+          </SidebarGroupLabel>
           <ChatItemGroup chats={groupedChats.lastWeek} chatbotSlug={chatbotSlug} {...chatItemGroupProps} />
         </SidebarGroup>
       )}
 
       {groupedChats.lastMonth.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Last 30 days</SidebarGroupLabel>
+          <SidebarGroupLabel 
+            style={{ 
+              color: themeVars.sidebarTextColor,
+              opacity: 0.7 
+            }}
+          >
+            Last 30 days
+          </SidebarGroupLabel>
            <ChatItemGroup chats={groupedChats.lastMonth} chatbotSlug={chatbotSlug} {...chatItemGroupProps} />
         </SidebarGroup>
       )}
 
       {groupedChats.older.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Older than last month</SidebarGroupLabel>
+          <SidebarGroupLabel 
+            style={{ 
+              color: themeVars.sidebarTextColor,
+              opacity: 0.7 
+            }}
+          >
+            Older than last month
+          </SidebarGroupLabel>
            <ChatItemGroup chats={groupedChats.older} chatbotSlug={chatbotSlug} {...chatItemGroupProps} />
         </SidebarGroup>
       )}

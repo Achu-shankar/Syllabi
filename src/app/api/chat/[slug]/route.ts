@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPublishedChatbotBySlug } from '@/app/chat/lib/queries';
+import { getChatbotBySlug } from '@/app/chat/lib/queries';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = params;
+    const { slug } = await params;
 
     if (!slug) {
       return NextResponse.json(
@@ -15,11 +15,11 @@ export async function GET(
       );
     }
 
-    const chatbot = await getPublishedChatbotBySlug(slug);
+    const chatbot = await getChatbotBySlug(slug);
 
     if (!chatbot) {
       return NextResponse.json(
-        { error: 'Chatbot not found or not published' },
+        { error: 'Chatbot not found or access denied' },
         { status: 404 }
       );
     }

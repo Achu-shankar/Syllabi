@@ -8,7 +8,7 @@ import {
     tool,
   } from 'ai';
   import { openai } from '@ai-sdk/openai';
-  import { systemPrompt } from '@/app/chat/[chatbotId]/lib/prompt';
+  import { buildSystemPrompt } from '@/app/chat/[chatbotId]/lib/prompt';
   import {
     generateUUID,
     getMostRecentUserMessage,
@@ -16,7 +16,8 @@ import {
   } from '@/app/chat/[chatbotId]/lib/utils';
 
 import { createClient } from '@/utils/supabase/server';
-import { saveOrUpdateChatMessages } from '@/app/chat/[chatbotId]/lib/db/queries';
+import { saveOrUpdateChatMessages, getChatbotConfig } from '@/app/chat/[chatbotId]/lib/db/queries';
+import { calculateTokenCost } from '@/app/chat/[chatbotId]/lib/token-utils';
 import { z } from 'zod';
 
   
@@ -29,17 +30,23 @@ import { z } from 'zod';
         messages,
         selectedChatModel,
         chatbotSlug,
+        selectedDocuments,
       }: {
         id: string;
         messages: Array<UIMessage>;
         selectedChatModel: string;
         chatbotSlug: string;
+        selectedDocuments?: string[];
       } = await request.json();
+
+
+      console.log(`[Chat API] Selected documents: ${selectedDocuments}`);
 
       
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
   
+      // Note: We now allow both authenticated and anonymous users
       // if (!user?.id) {
       //   return new Response('Unauthorized', { status: 401 });
       // }
@@ -53,20 +60,107 @@ import { z } from 'zod';
         return new Response('No user message found', { status: 400 });
       }
 
-      if (user){
-       await saveOrUpdateChatMessages(user.id, id, chatbotSlug, [userMessage]);
+      // Get chatbot_id from chatbotSlug
+      const { data: chatbot, error: chatbotError } = await supabase
+        .from('chatbots')
+        .select('id')
+        .eq('shareable_url_slug', chatbotSlug)
+        .single();
+
+      if (chatbotError || !chatbot) {
+        return new Response('Chatbot not found', { status: 404 });
+      }
+
+      const chatbotId = chatbot.id;
+
+      // Fetch chatbot configuration (model, system prompt, temperature)
+      let chatbotConfig;
+      try {
+        chatbotConfig = await getChatbotConfig(chatbotId);
+        console.log(`[Chat API] Loaded config for chatbot ${chatbotId}:`, {
+          model: chatbotConfig.ai_model_identifier,
+          hasCustomPrompt: !!chatbotConfig.system_prompt,
+          temperature: chatbotConfig.temperature,
+        });
+      } catch (configError) {
+        console.error('Failed to fetch chatbot config:', configError);
+        return new Response('Failed to load chatbot configuration', { status: 500 });
+      }
+
+      // Use configured model or fallback to default
+      const modelToUse = chatbotConfig.ai_model_identifier || 'gpt-4o-mini';
+      
+      // Build system prompt with custom instructions
+      const finalSystemPrompt = buildSystemPrompt(chatbotConfig.system_prompt);
+      
+      // Use configured temperature or fallback to default
+      const temperatureToUse = chatbotConfig.temperature ?? 0.7;
+
+      console.log(`[Chat API] Using model: ${modelToUse}, temperature: ${temperatureToUse}`);
+
+      // Save user message for both logged-in and anonymous users
+      // For logged-in users: user.id, for anonymous: null
+      const userId = user?.id || null;
+      console.log(`[Chat API] User: ${userId ? `authenticated (${userId})` : 'anonymous'}`);
+      
+      try {
+        // Extract provider from model string for consistency
+        const extractProviderFromModel = (modelName: string): string => {
+          if (modelName.startsWith('gpt-') || modelName.startsWith('o1-') || modelName.startsWith('chatgpt-')) {
+            return 'openai';
+          } else if (modelName.startsWith('claude-')) {
+            return 'anthropic';
+          } else if (modelName.startsWith('llama-') || modelName.startsWith('meta-')) {
+            return 'meta';
+          } else if (modelName.startsWith('gemini-')) {
+            return 'google';
+          }
+          return 'unknown';
+        };
+
+        // Create metadata for user message
+        const userMessageMetadata = {
+          model: {
+            provider: extractProviderFromModel(modelToUse),
+            model: modelToUse,
+            temperature: temperatureToUse
+          },
+          chatbotConfig: {
+            chatbotId: chatbotId,
+            systemPrompt: !!chatbotConfig.system_prompt
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        // Add metadata to user message
+        const enrichedUserMessage = {
+          ...userMessage,
+          metadata: userMessageMetadata
+        };
+
+        console.log(`[Chat API] User message metadata:`, JSON.stringify(userMessageMetadata, null, 2));
+
+        // Rough token estimation for user message (will be refined when we get the actual prompt tokens)
+        const estimatedUserTokens = Math.ceil(userMessage.content.length / 4); // Rough estimation: ~4 characters per token
+
+        await saveOrUpdateChatMessages(userId, id, chatbotSlug, [enrichedUserMessage], estimatedUserTokens);
+      } catch (saveError) {
+        console.error('[Chat API] Failed to save user message:', saveError);
+        // For now, continue with the chat even if saving fails
+        // In production, you might want to return an error
       }
   
   
       return createDataStreamResponse({
         execute: (dataStream) => {
           const result = streamText({
-            model: openai('gpt-4.1'),
-            system: systemPrompt,
+            model: openai(modelToUse),
+            system: finalSystemPrompt,
             messages,
+            temperature: temperatureToUse,
             maxSteps: 5,
             // toolChoice: 'required',
-            // experimental_activeTools: ['getDspaDocs'],
+            experimental_activeTools: ['getRelevantDocuments', 'listAvailableDocuments', 'getMultimediaContent'],
             // experimental_activeTools:
             //   selectedChatModel === 'chat-model-reasoning'
             //     ? []
@@ -79,35 +173,55 @@ import { z } from 'zod';
             experimental_transform: smoothStream({ chunking: 'word' }),
             experimental_generateMessageId: generateUUID,
             tools: {
-              getDspaDocs: tool({
-                description: 'Get information from your DSPA knowledge base to answer the user\'s question.',
+              getRelevantDocuments: tool({
+                description: 'Get information from the chatbot\'s knowledge base to answer the user\'s question.',
                 parameters: z.object({
-                  query: z.string().describe('The search query to find relevant documents.'),
+                  query: z.string().describe('The a good search query to find relevant documents.'),
+                  contentTypes: z.array(z.enum(['document', 'url', 'video', 'audio'])).optional().describe('Specific content types to search. Defaults to all types.'),
+                  maxPerType: z.number().optional().describe('Maximum results per content type. Useful for balanced results.'),
                 }),
-                execute: async ({ query }) => {
+                execute: async ({ query, contentTypes, maxPerType }) => {
                   try {
                     // 1. Embed the query using OpenAI via AI SDK
                     const { embedding } = await embed({
-                      model: openai.embedding('text-embedding-3-small'), // Ensure this model matches DB embeddings
+                      model: openai.embedding('text-embedding-3-small'),
                       value: query,
                     });
 
-                    // 2. Call Supabase RPC function with the embedding
-                    const { data, error } = await supabase.rpc('retrieve_dspa_docs', {
-                      query_embedding: embedding, // Pass the generated embedding
-                      num_docs: 5, // Keep the default or make it configurable?
+                    // 2. Call the enhanced Supabase RPC function with multimedia support
+                    const { data, error } = await supabase.rpc('match_document_chunks_enhanced', {
+                      query_embedding: embedding,
+                      chatbot_id_param: chatbotId,
+                      match_threshold: 0.2,
+                      match_count: 10,
+                      content_types: contentTypes || ['document', 'url', 'video', 'audio'],
+                      max_per_content_type: maxPerType || null,
                     });
 
                     if (error) {
                       console.error('Supabase RPC error:', error);
-                      // Consider returning a more specific error message to the model
                       return { error: `Failed to retrieve documents: ${error.message}` };
                     }
 
-                    // 3. Return the retrieved documents
-                    // Ensure the returned data is serializable (usually is from Supabase)
-                    console.log(`Retrieved ${data?.length ?? 0} documents for query: "${query}"`);
-                    return { documents: data ?? [] }; // Return data under a 'documents' key
+                    // 3. Return the retrieved document chunks with enhanced multimedia metadata
+                    console.log(`Retrieved ${data?.length ?? 0} document chunks for query: "${query}"`);
+                    return { 
+                      documents: data?.map((chunk: any) => ({
+                        chunk_id: chunk.chunk_id,
+                        reference_id: chunk.reference_id,
+                        page_number: chunk.page_number,
+                        content: chunk.chunk_text,
+                        token_count: chunk.token_count,
+                        similarity: chunk.similarity,
+                        content_type: chunk.content_type,
+                        start_time_seconds: chunk.start_time_seconds,
+                        end_time_seconds: chunk.end_time_seconds,
+                        speaker: chunk.speaker,
+                        chunk_type: chunk.chunk_type,
+                        confidence_score: chunk.confidence_score,
+                        created_at: chunk.created_at
+                      })) ?? [] 
+                    };
 
                   } catch (embeddingError) {
                     console.error('Embedding error:', embeddingError);
@@ -115,9 +229,100 @@ import { z } from 'zod';
                   }
                 },
               }),
+              
+              listAvailableDocuments: tool({
+                description: 'List all documents available in the chatbot\'s knowledge base.',
+                parameters: z.object({}), // No parameters needed
+                execute: async () => {
+                  try {
+                    // Query the chatbot_content_sources table for all documents
+                    const { data, error } = await supabase
+                      .from('chatbot_content_sources')
+                      .select('file_name, uploaded_at, indexing_status')
+                      .eq('chatbot_id', chatbotId)
+                      .order('uploaded_at', { ascending: false });
+
+                    if (error) {
+                      console.error('Supabase query error:', error);
+                      return { error: `Failed to retrieve document list: ${error.message}` };
+                    }
+
+                    // Return the list of available documents
+                    console.log(`Retrieved ${data?.length ?? 0} documents for chatbot: ${chatbotId}`);
+                    return { 
+                      documents: data?.map((doc: any) => ({
+                        file_name: doc.file_name,
+                        uploaded_at: doc.uploaded_at,
+                        indexing_status: doc.indexing_status
+                      })) ?? [] 
+                    };
+
+                  } catch (queryError) {
+                    console.error('Database query error:', queryError);
+                    return { error: `Failed to query document list.` };
+                  }
+                },
+              }),
+
+              getMultimediaContent: tool({
+                description: 'Search specifically in video and audio content, optionally within specific time ranges. Useful for finding specific moments in multimedia content.',
+                parameters: z.object({
+                  query: z.string().describe('Search query for multimedia content.'),
+                  referenceId: z.string().optional().describe('Specific content source ID to search within.'),
+                  timeRangeStart: z.number().optional().describe('Start time in seconds to search from.'),
+                  timeRangeEnd: z.number().optional().describe('End time in seconds to search until.'),
+                }),
+                execute: async ({ query, referenceId, timeRangeStart, timeRangeEnd }) => {
+                  try {
+                    // 1. Embed the query using OpenAI via AI SDK
+                    const { embedding } = await embed({
+                      model: openai.embedding('text-embedding-3-small'),
+                      value: query,
+                    });
+
+                    // 2. Call the multimedia-specific Supabase RPC function
+                    const { data, error } = await supabase.rpc('match_multimedia_chunks_with_time', {
+                      query_embedding: embedding,
+                      chatbot_id_param: chatbotId,
+                      reference_id_param: referenceId || null,
+                      match_threshold: 0.2,
+                      match_count: 8,
+                      time_range_start: timeRangeStart || null,
+                      time_range_end: timeRangeEnd || null,
+                    });
+
+                    if (error) {
+                      console.error('Multimedia search error:', error);
+                      return { error: `Failed to retrieve multimedia content: ${error.message}` };
+                    }
+
+                    // 3. Return multimedia chunks with time information
+                    console.log(`Retrieved ${data?.length ?? 0} multimedia chunks for query: "${query}"`);
+                    return { 
+                      multimedia_content: data?.map((chunk: any) => ({
+                        chunk_id: chunk.chunk_id,
+                        reference_id: chunk.reference_id,
+                        content: chunk.chunk_text,
+                        similarity: chunk.similarity,
+                        start_time_seconds: chunk.start_time_seconds,
+                        end_time_seconds: chunk.end_time_seconds,
+                        speaker: chunk.speaker,
+                        chunk_type: chunk.chunk_type,
+                        confidence_score: chunk.confidence_score,
+                        // Format time for better readability
+                        time_range: `${Math.floor(chunk.start_time_seconds / 60)}:${(chunk.start_time_seconds % 60).toString().padStart(2, '0')} - ${Math.floor(chunk.end_time_seconds / 60)}:${(chunk.end_time_seconds % 60).toString().padStart(2, '0')}`
+                      })) ?? [] 
+                    };
+
+                  } catch (embeddingError) {
+                    console.error('Multimedia embedding error:', embeddingError);
+                    return { error: `Failed to create embedding for multimedia search.` };
+                  }
+                },
+              }),
             },
-            onFinish: async ({ response }) => {
-              if (user?.id) {
+            onFinish: async ({ response, usage }) => {
+              // Save assistant message for both logged-in and anonymous users
                 try {
                   const assistantId = getTrailingMessageId({
                     messages: response.messages.filter(
@@ -134,15 +339,78 @@ import { z } from 'zod';
                     responseMessages: response.messages,
                   });
 
+                // Extract detailed token usage and model information
+                const tokenUsage = usage || {
+                  promptTokens: 0,
+                  completionTokens: 0,
+                  totalTokens: 0
+                };
+
+                // Extract provider from model string (e.g., "gpt-4o-mini" -> "openai")
+                const extractProviderFromModel = (modelName: string): string => {
+                  if (modelName.startsWith('gpt-') || modelName.startsWith('o1-') || modelName.startsWith('chatgpt-')) {
+                    return 'openai';
+                  } else if (modelName.startsWith('claude-')) {
+                    return 'anthropic';
+                  } else if (modelName.startsWith('llama-') || modelName.startsWith('meta-')) {
+                    return 'meta';
+                  } else if (modelName.startsWith('gemini-')) {
+                    return 'google';
+                  }
+                  return 'unknown';
+                };
+
+                const detectedProvider = extractProviderFromModel(modelToUse);
+                const responseModel = response.modelId || modelToUse;
+
+                // Create metadata object with detailed information
+                const messageMetadata = {
+                  // Token usage details
+                  tokenUsage: {
+                    promptTokens: tokenUsage.promptTokens,
+                    completionTokens: tokenUsage.completionTokens,
+                    totalTokens: tokenUsage.totalTokens
+                  },
+                  // Cost calculation
+                  cost: calculateTokenCost(tokenUsage, modelToUse),
+                  // Model and provider information (extracted from response)
+                  model: {
+                    provider: detectedProvider,
+                    model: responseModel,
+                    temperature: temperatureToUse,
+                    requestedModel: modelToUse  // What we requested vs what we got
+                  },
+                  // Response metadata
+                  response: {
+                    id: response.id || null,
+                    timestamp: new Date().toISOString()
+                  },
+                  // Save the chatbot configuration used
+                  chatbotConfig: {
+                    chatbotId: chatbotId,
+                    systemPrompt: !!chatbotConfig.system_prompt // Just track if custom prompt was used
+                  }
+                };
+
+                // Update the assistant message with metadata
+                const enrichedAssistantMessage = {
+                  ...assistantMessage,
+                  metadata: messageMetadata
+                };
+
+                console.log(`[Chat API] Assistant message metadata:`, JSON.stringify(messageMetadata, null, 2));
+
                   await saveOrUpdateChatMessages(
-                    user.id,
+                  userId, // Can be null for anonymous users
                     id,
                     chatbotSlug,
-                    [assistantMessage]
-                  );
-                } catch (_) {
-                  console.error('Failed to save chat');
-                }
+                  [enrichedAssistantMessage],
+                  tokenUsage.totalTokens // Use actual total tokens for the token_count field
+                );
+
+                console.log(`[Chat API] Saved assistant message with ${tokenUsage.totalTokens} tokens (${tokenUsage.promptTokens} prompt + ${tokenUsage.completionTokens} completion)`);
+              } catch (saveError) {
+                console.error('Failed to save assistant message:', saveError);
               }
             },
             // experimental_telemetry: {

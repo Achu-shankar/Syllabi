@@ -1,85 +1,80 @@
 import {createContext, useState, useContext, ReactNode} from 'react';
+import { ContentSource } from '../db/content_queries';
 
 export interface EbookContextType {
-    isEbookPanelOpen:boolean;
-    currentEbookUrl: string | null;
+    isEbookPanelOpen: boolean;
+    currentDocument: ContentSource | null;
+    currentTimestamp: number | null; // For multimedia content only
     isLoading: boolean;
-    openEbookPanel: (url?: string) => void;
+    openEbookPanel: (documentId?: string) => void;
     closeEbookPanel: () => void;
-    navigateToChapter: (url: string) => void;
+    selectDocument: (document: ContentSource, timestamp?: number) => void; // Removed pageNumber, only timestamp for multimedia
+    navigateToTimestamp: (timestamp: number) => void; // For multimedia navigation only
     setIsLoadingEbook: (loading: boolean) => void;
 }
-
 
 const EbookContext = createContext<EbookContextType | undefined>(undefined)
 
 const EbookProvider = ({children}:{children:ReactNode})=>{
     const [isEbookPanelOpen, setIsEbookPanelOpen] = useState(false);
-    const [currentEbookUrl, setCurrentEbookUrl] = useState<string | null>(null);
+    const [currentDocument, setCurrentDocument] = useState<ContentSource | null>(null);
+    const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null);
     const [isLoadingEbook, setIsLoadingEbook] = useState(false);
 
-    const openEbookPanel = (url?:string)=>{
-        let urlToLoad = url;
-        let urlChanged = false;
-        
-        if (!urlToLoad && !currentEbookUrl && chapters.length > 0) {
-            urlToLoad = chapters[0].url;
+    const openEbookPanel = (documentId?: string) => {
+        setIsEbookPanelOpen(true);
+        // If a specific document is requested, we'll handle selection in the component
+        // that has access to the content sources list
+        // If no specific document but we have a current document, it will be restored automatically
+        if (!documentId && currentDocument) {
+            console.log(`[EbookContext] Restoring previous document: ${currentDocument.file_name} at page ${currentTimestamp || 1}`);
         }
+    }
 
-        if (urlToLoad && urlToLoad !== currentEbookUrl) {
-            setCurrentEbookUrl(urlToLoad);
-            urlChanged = true;
-        }
-        
-        if (urlChanged) {
+    const closeEbookPanel = () => {
+        setIsEbookPanelOpen(false);
+        setIsLoadingEbook(false);
+        // Keep currentDocument and currentTimestamp to restore when reopening
+    }
+    
+    const selectDocument = (document: ContentSource, timestamp?: number) => {
+        // Only set loading if we're actually changing documents
+        if (!currentDocument || currentDocument.id !== document.id) {
             setIsLoadingEbook(true);
+            console.log(`[EbookContext] Switching to new document: ${document.file_name}${timestamp ? ` at timestamp ${timestamp}s` : ''}`);
+        } else {
+            console.log(`[EbookContext] Navigating within same document: ${document.file_name} to timestamp ${timestamp || 'null'}`);
         }
         
+        setCurrentDocument(document);
+        setCurrentTimestamp(timestamp || null);
+        console.log(`[EbookContext] Set currentTimestamp to: ${timestamp || null}`);
         setIsEbookPanelOpen(true);
     }
 
-    const closeEbookPanel =() => {
-        setIsEbookPanelOpen(false);
-        setIsLoadingEbook(false);
-    }
-    
-    // Helper function to get base URL (excluding hash)
-    const getBaseUrl = (urlString: string | null): string => {
-        if (!urlString) return '';
-        try {
-            const urlObject = new URL(urlString);
-            return urlObject.origin + urlObject.pathname + urlObject.search;
-        } catch (e) {
-            // Handle potential invalid URLs, maybe return the original string or empty
-            return urlString.split('#')[0] || ''; // Basic fallback
-        }
-    };
-
-    const navigateToChapter =  (url:string) => { // url can be full URL with fragment
-        const newBaseUrl = getBaseUrl(url);
-        const currentBaseUrl = getBaseUrl(currentEbookUrl);
-
-        // Only set loading if the base URL is different
-        if (newBaseUrl !== currentBaseUrl) { 
-            setIsLoadingEbook(true); 
-        } // If only the fragment changes, isLoading remains false
-        
-        // Always update the current URL state to the full new URL
-        // This ensures the iframe src is updated with the new fragment
-        setCurrentEbookUrl(url); 
-        
-        setIsEbookPanelOpen(true); // Ensure panel is open regardless of loading state change
+    const navigateToTimestamp = (timestamp: number) => {
+        console.log(`[EbookContext] navigateToTimestamp called with: ${timestamp}s`);
+        setCurrentTimestamp(timestamp);
+        console.log(`[EbookContext] Set currentTimestamp to: ${timestamp}`);
+        // No loading needed for timestamp navigation
     }
 
     return (
-        <EbookContext.Provider value = {{isEbookPanelOpen, currentEbookUrl, isLoading: isLoadingEbook, openEbookPanel, closeEbookPanel, navigateToChapter, setIsLoadingEbook}}>
+        <EbookContext.Provider value={{
+            isEbookPanelOpen, 
+            currentDocument, 
+            currentTimestamp,
+            isLoading: isLoadingEbook, 
+            openEbookPanel, 
+            closeEbookPanel, 
+            selectDocument,
+            navigateToTimestamp,
+            setIsLoadingEbook
+        }}>
             {children}
         </EbookContext.Provider>
     )
-
 }
-
-import { chapters } from '../data/ebook-chapters';
 
 const useEbookContext = () => {
     const context = useContext(EbookContext);

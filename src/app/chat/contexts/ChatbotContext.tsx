@@ -12,6 +12,7 @@ export interface PublicChatbot {
   theme: ThemeConfig;
   suggested_questions?: string[] | null;
   shareable_url_slug?: string | null;
+  visibility: 'private' | 'public' | 'shared';
 }
 
 // Import the ThemeConfig interface
@@ -94,7 +95,7 @@ export function ChatbotProvider({ slug, children }: ChatbotProviderProps) {
         setState({
           chatbot: null,
           isLoading: false,
-          error: 'Chatbot not found or not published',
+          error: 'Chatbot not found or access denied',
         });
         return;
       }

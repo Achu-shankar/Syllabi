@@ -159,3 +159,419 @@
   scrollbar-width: auto;
   scrollbar-color: hsl(var(--accent-foreground)) hsl(var(--accent));
 } */
+
+/* Video.js custom styling */
+.video-js-container {
+  width: 100%;
+}
+
+.video-js {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.video-js .vjs-big-play-button {
+  font-size: 2.5em;
+  line-height: 1.5em;
+  height: 1.5em;
+  width: 3em;
+  border-radius: 0.3em;
+  background-color: rgba(43, 51, 63, 0.7);
+  border: 0.06666em solid #fff;
+  color: #fff;
+}
+
+.video-js .vjs-big-play-button:hover,
+.video-js .vjs-big-play-button:focus {
+  background-color: rgba(43, 51, 63, 0.9);
+}
+
+.video-js .vjs-control-bar {
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.7));
+}
+
+.video-js .vjs-progress-control .vjs-progress-holder {
+  height: 0.3em;
+}
+
+.video-js .vjs-progress-control .vjs-play-progress {
+  background-color: #3b82f6;
+}
+
+.video-js .vjs-progress-control .vjs-load-progress {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.video-js .vjs-volume-panel.vjs-volume-panel-horizontal.vjs-slider-active,
+.video-js .vjs-volume-panel.vjs-volume-panel-horizontal:active,
+.video-js .vjs-volume-panel.vjs-volume-panel-horizontal:focus,
+.video-js .vjs-volume-panel.vjs-volume-panel-horizontal:hover {
+  width: 9em;
+}
+
+/* Quality selector styling */
+.video-js .vjs-http-source-selector .vjs-menu-content {
+  background-color: rgba(43, 51, 63, 0.9);
+  border-radius: 0.3em;
+}
+
+.video-js .vjs-http-source-selector .vjs-menu-item {
+  color: #fff;
+  padding: 0.5em 1em;
+}
+
+.video-js .vjs-http-source-selector .vjs-menu-item:hover,
+.video-js .vjs-http-source-selector .vjs-menu-item:focus {
+  background-color: rgba(59, 130, 246, 0.8);
+}
+
+/* Audio player specific styling */
+.video-js.vjs-audio-only-mode {
+  background-color: transparent;
+}
+
+.video-js.vjs-audio-only-mode .vjs-poster {
+  display: none;
+}
+
+/* Video.js Seek Button Styling - Using Simple Text Symbols */
+/* .video-js .vjs-seek-button.skip-back:before {
+  content: "10" !important;
+  position: absolute !important;
+  top: -8px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  font-size: 0.6em !important;
+  color: #fff !important;
+  font-family: Arial, sans-serif !important;
+  font-weight: bold !important;
+  z-index: 2 !important;
+} */
+
+.video-js .vjs-seek-button.skip-back:after {
+  content: "⏪" !important; /* Unicode rewind symbol */
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  font-size: 1.2em !important;
+  color: #fff !important;
+  line-height: 1 !important;
+  font-family: Arial, sans-serif !important;
+  font-weight: normal !important;
+  z-index: 1 !important;
+}
+
+/* .video-js .vjs-seek-button.skip-forward:before {
+  content: "10" !important;
+  position: absolute !important;
+  top: -8px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  font-size: 0.6em !important;
+  color: #fff !important;
+  font-family: Arial, sans-serif !important;
+  font-weight: bold !important;
+  z-index: 2 !important;
+} */
+
+.video-js .vjs-seek-button.skip-forward:after {
+  content: "⏩" !important; /* Unicode fast-forward symbol */
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  font-size: 1.2em !important;
+  color: #fff !important;
+  line-height: 1 !important;
+  font-family: Arial, sans-serif !important;
+  font-weight: normal !important;
+  z-index: 1 !important;
+}
+
+/* Hover effects for seek buttons */
+.video-js .vjs-seek-button:hover:before,
+.video-js .vjs-seek-button:hover:after {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Active state for seek buttons */
+.video-js .vjs-seek-button:active:before,
+.video-js .vjs-seek-button:active:after {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Hide the default icon placeholder content */
+.video-js .vjs-seek-button .vjs-icon-placeholder:before {
+  display: none !important;
+}
+
+/* Ensure proper control bar ordering - Play, Skip Back, Skip Forward */
+.video-js .vjs-control-bar .vjs-play-control {
+  order: 1 !important;
+}
+
+.video-js .vjs-control-bar .vjs-seek-button.skip-back {
+  order: 2 !important;
+}
+
+.video-js .vjs-control-bar .vjs-seek-button.skip-forward {
+  order: 3 !important;
+}
+
+/* Ensure other controls come after */
+.video-js .vjs-control-bar .vjs-volume-panel {
+  order: 4 !important;
+}
+
+.video-js .vjs-control-bar .vjs-current-time {
+  order: 5 !important;
+}
+
+.video-js .vjs-control-bar .vjs-time-divider {
+  order: 6 !important;
+}
+
+.video-js .vjs-control-bar .vjs-duration {
+  order: 7 !important;
+}
+
+.video-js .vjs-control-bar .vjs-progress-control {
+  order: 8 !important;
+  flex: 1 !important;
+}
+
+.video-js .vjs-control-bar .vjs-remaining-time {
+  order: 9 !important;
+}
+
+.video-js .vjs-control-bar .vjs-playback-rate {
+  order: 10 !important;
+}
+
+.video-js .vjs-control-bar .vjs-fullscreen-control {
+  order: 11 !important;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .video-js .vjs-big-play-button {
+    font-size: 2em;
+    line-height: 1.5em;
+    height: 1.5em;
+    width: 2.5em;
+  }
+  
+  .video-js .vjs-control-bar {
+    font-size: 1.2em;
+  }
+
+  .video-js .vjs-seek-button {
+    width: 1.8em !important;
+    height: 1.8em !important;
+    line-height: 1.8em !important;
+    font-size: 1.3em !important;
+  }
+  
+  .video-js .vjs-seek-button.skip-back:after,
+  .video-js .vjs-seek-button.skip-forward:after {
+    font-size: 1em !important;
+  }
+  
+  .video-js .vjs-seek-button.skip-back:before,
+  .video-js .vjs-seek-button.skip-forward:before {
+    font-size: 0.5em !important;
+    top: -6px !important;
+  }
+}
+
+/* PDF.js Text Layer Styles */
+.textLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  line-height: 1.0;
+  color: transparent;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.textLayer span,
+.textLayer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  pointer-events: auto;
+}
+
+/* Modern TextLayer API compatibility */
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  cursor: default;
+  user-select: none;
+}
+
+.textLayer .endOfContent.active {
+  top: 0;
+}
+
+/* Text Selection Styling */
+.textLayer ::selection {
+  background: rgba(0, 100, 255, 0.3);
+  color: transparent;
+}
+
+.textLayer ::-moz-selection {
+  background: rgba(0, 100, 255, 0.3);
+  color: transparent;
+}
+
+/* Search Highlights */
+.textLayer mark {
+  background-color: rgba(255, 235, 59, 0.6);
+  color: transparent;
+  border-radius: 2px;
+  padding: 0;
+  margin: 0;
+}
+
+.textLayer mark.pdf-search-active-match {
+  background-color: rgba(255, 107, 53, 0.8);
+  box-shadow: 0 0 0 1px rgba(255, 107, 53, 1);
+}
+
+.textLayer .highlight {
+  margin: -1px;
+  padding: 1px;
+  background-color: rgba(180, 0, 170, 1);
+  border-radius: 4px;
+}
+
+.textLayer .highlight.begin {
+  border-radius: 4px 0px 0px 4px;
+}
+
+.textLayer .highlight.end {
+  border-radius: 0px 4px 4px 0px;
+}
+
+.textLayer .highlight.middle {
+  border-radius: 0px;
+}
+
+.textLayer .highlight.selected {
+  background-color: rgba(0, 100, 0, 1);
+}
+
+/* PDF Highlight Styles */
+.pdf-highlight {
+  position: absolute;
+  background-color: rgba(255, 235, 59, 0.3);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pdf-highlight-active {
+  background-color: rgba(255, 107, 53, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.8);
+  z-index: 2;
+}
+
+/* PDF Viewer Container Styles */
+.pdf-viewer-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.pdf-page-container {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.pdf-page-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* PDF Annotation Layer Styles */
+.annotation-layer {
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pdf-annotation {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.pdf-annotation:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+
+.pdf-annotation-highlight {
+  border-radius: 2px;
+  transition: opacity 0.2s ease;
+}
+
+.pdf-annotation-highlight:hover {
+  opacity: 0.8 !important;
+}
+
+.pdf-annotation-underline {
+  transition: border-color 0.2s ease;
+}
+
+.pdf-annotation-underline:hover {
+  border-bottom-width: 3px;
+}
+
+.pdf-annotation-strikethrough {
+  transition: border-color 0.2s ease;
+}
+
+.pdf-annotation-strikethrough:hover {
+  border-top-width: 2px;
+}
+
+.pdf-annotation-note {
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  min-height: 20px;
+  transition: all 0.2s ease;
+}
+
+.pdf-annotation-note:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+}
+
+.pdf-annotation-note span {
+  pointer-events: none;
+  user-select: none;
+}

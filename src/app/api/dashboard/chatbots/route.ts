@@ -51,30 +51,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const payload: CreateChatbotPayload = {
-    user_id: user.id,
-    name: chatbotDataFromRequest.name,
-    // Include other fields from the request if they are part of CreateChatbotPayload
-    description: chatbotDataFromRequest.description,
-    student_facing_name: chatbotDataFromRequest.student_facing_name,
-    logo_url: chatbotDataFromRequest.logo_url,
-    theme: chatbotDataFromRequest.theme,
-    ai_model_identifier: chatbotDataFromRequest.ai_model_identifier,
-    system_prompt: chatbotDataFromRequest.system_prompt,
-    temperature: chatbotDataFromRequest.temperature,
-    welcome_message: chatbotDataFromRequest.welcome_message,
-    suggested_questions: chatbotDataFromRequest.suggested_questions,
-    published: chatbotDataFromRequest.published,
-    is_active: chatbotDataFromRequest.is_active,
-    shareable_url_slug: chatbotDataFromRequest.shareable_url_slug,
-  };
-
   try {
-    const newChatbot = await createChatbot(payload);
+    // Insert the new chatbot using direct data with user_id override
+    const { data: newChatbot, error: insertError } = await supabase
+      .from('chatbots')
+      .insert([{
+        ...chatbotDataFromRequest,
+        user_id: user.id, // Ensure user_id is set correctly (override any client value)
+      }])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[API /dashboard/chatbots POST] Error:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to create chatbot', details: insertError.message },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(newChatbot, { status: 201 });
   } catch (error: any) {
     console.error('[API /dashboard/chatbots POST] Error:', error);
-    // Consider more specific error codes based on the type of error (e.g., unique constraint violation)
     return NextResponse.json(
       { error: 'Failed to create chatbot', details: error.message },
       { status: 500 }

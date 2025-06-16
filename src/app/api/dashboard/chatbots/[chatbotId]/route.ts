@@ -16,7 +16,7 @@ interface RouteParams {
 
 // GET a specific chatbot
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { chatbotId } = params;
+  const { chatbotId } = await params;
   if (!chatbotId) {
     return NextResponse.json({ error: "Chatbot ID is required" }, { status: 400 });
   }
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PATCH Handler for updating a chatbot
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const { chatbotId } = params;
+  const { chatbotId } = await params;
   if (!chatbotId) {
     return NextResponse.json({ error: "Chatbot ID is required" }, { status: 400 });
   }
@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 // DELETE Handler for deleting a chatbot
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const { chatbotId } = params;
+  const { chatbotId } = await params;
   if (!chatbotId) {
     return NextResponse.json({ error: "Chatbot ID is required" }, { status: 400 });
   }

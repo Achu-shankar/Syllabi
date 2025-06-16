@@ -1,44 +1,71 @@
 import { motion } from 'framer-motion';
 import { useChatConfig, useChatbotDisplayName } from '../../../contexts/ChatbotContext';
 import { useChatThemeVars } from '../ThemeApplicator';
+import { useState, useEffect } from 'react';
 
 export const Greeting = () => {
   const { chatbot } = useChatConfig();
   const displayName = useChatbotDisplayName();
   const themeVars = useChatThemeVars();
+  
+  const welcomeText = `Hello! Welcome to ${displayName}`;
+  const [displayedText, setDisplayedText] = useState("");
+  const [isTypingComplete, setIsTypingComplete] = useState(false);
+
+  // Typing animation effect
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    let currentIndex = 0;
+
+    const typeText = () => {
+      if (currentIndex < welcomeText.length) {
+        setDisplayedText(welcomeText.slice(0, currentIndex + 1));
+        currentIndex++;
+        timeoutId = setTimeout(typeText, 60); // Faster, more AI-like typing
+      } else {
+        setIsTypingComplete(true);
+      }
+    };
+
+    // Start typing after initial delay
+    timeoutId = setTimeout(typeText, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [welcomeText]);
 
   return (
-    <div
-      key="overview"
-      className="max-w-3xl mx-auto md:mt-20 px-8 size-full flex flex-col items-center justify-center"
-    >
+    <div className="text-center">
+      {/* Main welcome message with typing effect */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.5 }}
-        className="text-4xl font-semibold"
-      >
-        <span 
-          className="text-4xl font-bold font-display bg-gradient-to-r bg-clip-text text-transparent"
+        transition={{ delay: 0.2 }}
+        className="text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent relative"
           style={{
-            backgroundImage: `linear-gradient(to right, ${themeVars.primaryColor}, ${themeVars.primaryColor}cc)`,
+          backgroundImage: `linear-gradient(to right, ${themeVars.primaryColor}, #f97316)`,
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
-          }}
-        >
-          {chatbot?.welcome_message || `Hello there!`}
-        </span>
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 10 }}
-        transition={{ delay: 0.6 }}
-        className="text-3xl"
-        style={{ color: 'var(--chat-bubble-bot-text-color, #6b7280)' }}
+          filter: 'drop-shadow(0 0 8px rgba(249, 115, 22, 0.3))',
+        }}
       >
-        Welcome to {displayName}!
+        {displayedText}
+        {/* Blinking cursor - always visible */}
+        <motion.span
+          key={isTypingComplete ? 'slow-blink' : 'fast-blink'}
+          className="inline-block ml-1 w-0.5 h-8"
+          animate={{
+            opacity: [1, 0, 1],
+          }}
+          transition={{
+            duration: isTypingComplete ? 1.5 : 0.6,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          style={{ 
+            backgroundColor: '#f97316',
+            filter: 'drop-shadow(0 0 4px rgba(249, 115, 22, 0.5))'
+          }}
+        />
       </motion.div>
     </div>
   );

@@ -1,7 +1,7 @@
 import type {  Message } from '@ai-sdk/react';
 import type { CoreAssistantMessage, CoreToolMessage} from 'ai';
-import type { DBMessage } from './db/queries'; // Assuming it's in the same lib folder for simplicity
-import { M } from 'framer-motion/dist/types.d-DDSxwf0n';
+import type { DBMessage } from './db/queries';
+
 
 /**
  * Converts database message objects into the AI SDK Message format.
@@ -48,6 +48,7 @@ export function generateUUID(): string {
     return v.toString(16);
   });
 }
+
 export function getMostRecentUserMessage(messages: Array<Message>) {
   const userMessages = messages.filter((message) => message.role === 'user');
   return userMessages.at(-1);

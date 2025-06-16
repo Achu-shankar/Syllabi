@@ -88,7 +88,7 @@ export function AppSidebar({ chatbotId, ...props }: AppSidebarProps) {
   ];
 
   return (
-    <Sidebar collapsible="icon" {...props} variant="inset" className="bg-sidebar">
+    <Sidebar collapsible="icon" {...props} className="bg-sidebar">
       <SidebarHeader className="p-2">
         <Link href="/dashboard" className="flex items-center justify-start gap-2 p-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-md">
             <Image src="/syllabi_logo.png" alt="Syllabi.io Logo" width={16} height={16} />
@@ -96,8 +96,12 @@ export function AppSidebar({ chatbotId, ...props }: AppSidebarProps) {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} chatbotId={chatbotId} />
+        <NavMain items={navItems}  />
       </SidebarContent>
+      <SidebarFooter>
+        {/* NavUser will handle fetching/displaying user info and logout */}
+        <NavUser />
+      </SidebarFooter>
     </Sidebar>
   )
 }

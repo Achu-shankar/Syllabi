@@ -32,6 +32,7 @@ export interface ThemeColors {
 }
 
 export interface ThemeConfig {
+  themeId?: string; // NEW: Unique identifier for predefined themes
   fontFamily?: string;
   aiMessageAvatarUrl?: string | null;
   userMessageAvatarUrl?: string | null;
@@ -40,6 +41,10 @@ export interface ThemeConfig {
   // Allow other global (non-color mode specific) string keys with any value for flexibility
   [key: string]: any; 
 }
+
+// Enum types matching the database
+export type ChatbotVisibility = 'private' | 'public' | 'shared';
+export type ChatbotRole = 'viewer' | 'editor';
 
 // Define the types based on your Supabase chatbots table
 export interface Chatbot {
@@ -55,13 +60,30 @@ export interface Chatbot {
   system_prompt?: string | null; // NEW
   temperature?: number | null; // NEW, e.g., 0.7
   suggested_questions?: string[] | null; // Updated from any
-  published: boolean; // NEW, default false
+  visibility: ChatbotVisibility; // NEW: replaces published boolean
   is_active: boolean; // System status
   shareable_url_slug?: string | null;
   rate_limit_config?: any | null; // JSONB
   access_control_config?: any | null; // JSONB
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
+}
+
+// New interface for chatbot permissions
+export interface ChatbotPermission {
+  id: string;
+  chatbot_id: string;
+  user_id: string;
+  role: ChatbotRole;
+  created_at: string;
+}
+
+// New interface for user data (for search results)
+export interface UserSearchResult {
+  id: string;
+  email?: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface CreateChatbotPayload {
@@ -76,7 +98,7 @@ export interface CreateChatbotPayload {
   system_prompt?: string;
   temperature?: number;
   suggested_questions?: string[]; // Updated
-  published?: boolean; // Default will be false in DB
+  visibility?: ChatbotVisibility; // Default will be 'private' in DB
   is_active?: boolean; // Default will be true in DB
   shareable_url_slug?: string;
   // Other config JSONB fields can be added if needed at creation
@@ -89,7 +111,7 @@ export interface UpdateChatbotGeneralSettingsPayload {
   welcome_message?: string;
   student_facing_name?: string; // If it's considered general
   logo_url?: string; // If it's considered general
-  // `published` might be handled by a separate function/endpoint for clarity, or included here
+  // `visibility` might be handled by a separate function/endpoint for clarity, or included here
   // `theme`, `ai_model_identifier`, `system_prompt`, `temperature`, `suggested_questions` would be in their own update payloads
 }
 
@@ -107,7 +129,7 @@ export interface UpdateChatbotPayload {
   system_prompt?: string;
   temperature?: number;
   suggested_questions?: string[]; // Updated
-  published?: boolean;
+  visibility?: ChatbotVisibility; // Updated from published
   is_active?: boolean;
   shareable_url_slug?: string;
   rate_limit_config?: any;
@@ -141,7 +163,7 @@ export async function createChatbot(
         shareable_url_slug: shareableUrlSlug, // Ensure slug is always set
         // Ensure default values are handled by db or explicitly set if needed
         is_active: chatbotData.is_active === undefined ? true : chatbotData.is_active,
-        published: chatbotData.published === undefined ? false : chatbotData.published,
+        visibility: chatbotData.visibility === undefined ? 'private' : chatbotData.visibility,
         theme: chatbotData.theme === undefined ? {} : chatbotData.theme,
       },
     ])
@@ -494,6 +516,433 @@ export async function backfillMissingSlugs(userId?: string): Promise<number> {
   }
   
   return updatedCount;
+}
+
+// --- Analytics Functions ---
+
+export interface AnalyticsData {
+  totalConversations: number;
+  totalMessages: number;
+  activeUsers: number;
+  anonymousSessions: number;
+  averageMessagesPerConversation: number;
+  conversationCompletionRate: number;
+  contentSources: {
+    total: number;
+    processed: number;
+    processing: number;
+    failed: number;
+  };
+  dailyStats: Array<{
+    date: string;
+    conversations: number;
+    messages: number;
+  }>;
+  userTypes: {
+    registered: number;
+    anonymous: number;
+  };
+  technicalMetrics: {
+    averageResponseTime: number; // in seconds
+    errorRate: number; // percentage
+    totalResponses: number;
+    failedResponses: number;
+  };
+  contentUtilization: {
+    totalChunks: number;
+    utilizedChunks: number;
+    utilizationRate: number; // percentage
+    topSources: Array<{
+      title: string;
+      usage_count: number;
+    }>;
+  };
+}
+
+export type TimeRange = '24h' | '7d' | '30d' | 'all';
+
+// Helper function to get date range filter
+function getDateFilter(timeRange: TimeRange): string | null {
+  const now = new Date();
+  switch (timeRange) {
+    case '24h':
+      return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    case '7d':
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    case '30d':
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    case 'all':
+      return null;
+    default:
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  }
+}
+
+// Helper function to generate daily stats
+function generateDailyStats(
+  sessions: any[], 
+  messages: any[], 
+  timeRange: TimeRange
+): Array<{ date: string; conversations: number; messages: number }> {
+  const days = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 30;
+  const stats: Array<{ date: string; conversations: number; messages: number }> = [];
+  
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+    
+    const dayConversations = sessions.filter((session: any) => {
+      const sessionDate = new Date(session.created_at);
+      return sessionDate >= dayStart && sessionDate <= dayEnd;
+    }).length;
+    
+    const dayMessages = messages.filter((message: any) => {
+      const messageDate = new Date(message.created_at);
+      return messageDate >= dayStart && messageDate <= dayEnd;
+    }).length;
+    
+    stats.push({
+      date: dateStr,
+      conversations: dayConversations,
+      messages: dayMessages,
+    });
+  }
+  
+  return stats;
+}
+
+/**
+ * Fetches comprehensive analytics data for a chatbot
+ * @param chatbotId - The ID of the chatbot
+ * @param userId - The ID of the user (for RLS)
+ * @param timeRange - The time range for the analytics
+ * @returns Analytics data or throws an error
+ */
+export async function getChatbotAnalytics(
+  chatbotId: string, 
+  userId: string, 
+  timeRange: TimeRange
+): Promise<AnalyticsData> {
+  const supabase = await createClient();
+  const dateFilter = getDateFilter(timeRange);
+  
+  // First verify the user owns this chatbot
+  const { data: chatbot, error: chatbotError } = await supabase
+    .from('chatbots')
+    .select('id')
+    .eq('id', chatbotId)
+    .eq('user_id', userId)
+    .single();
+    
+  if (chatbotError || !chatbot) {
+    throw new Error('Chatbot not found or access denied');
+  }
+  
+  // Build the base query for chat sessions
+  let sessionsQuery = supabase
+    .from('chat_sessions')
+    .select('id, user_id, created_at')
+    .eq('chatbot_id', chatbotId);
+  
+  if (dateFilter) {
+    sessionsQuery = sessionsQuery.gte('created_at', dateFilter);
+  }
+  
+  const { data: sessions, error: sessionsError } = await sessionsQuery;
+  
+  if (sessionsError) {
+    throw new Error(`Failed to fetch chat sessions: ${sessionsError.message}`);
+  }
+  
+  // Build the base query for messages with more details for technical metrics
+  let messagesQuery = supabase
+    .from('messages')
+    .select('id, chat_session_id, user_id, role, created_at, token_count')
+    .in('chat_session_id', sessions?.map((s: any) => s.id) || []);
+  
+  if (dateFilter) {
+    messagesQuery = messagesQuery.gte('created_at', dateFilter);
+  }
+  
+  const { data: messages, error: messagesError } = await messagesQuery;
+  
+  if (messagesError) {
+    throw new Error(`Failed to fetch messages: ${messagesError.message}`);
+  }
+  
+  // Fetch content sources
+  const { data: contentSources, error: contentError } = await supabase
+    .from('chatbot_content_sources')
+    .select('id, indexing_status, title')
+    .eq('chatbot_id', chatbotId);
+  
+  if (contentError) {
+    throw new Error(`Failed to fetch content sources: ${contentError.message}`);
+  }
+  
+  // Fetch document chunks for content utilization
+  const { data: documentChunks, error: chunksError } = await supabase
+    .from('document_chunks')
+    .select('id, content_source_id, usage_count')
+    .in('content_source_id', contentSources?.map((cs: any) => cs.id) || []);
+  
+  if (chunksError) {
+    console.warn('Failed to fetch document chunks:', chunksError.message);
+    // Don't throw error, just log warning as this is supplementary data
+  }
+  
+  // Calculate basic metrics
+  const totalConversations = sessions?.length || 0;
+  const totalMessages = messages?.length || 0;
+  
+  // Count unique registered users and anonymous sessions
+  const registeredUsers = new Set(
+    sessions?.filter((s: any) => s.user_id).map((s: any) => s.user_id) || []
+  ).size;
+  
+  const anonymousSessions = sessions?.filter((s: any) => !s.user_id).length || 0;
+  
+  // Calculate average messages per conversation
+  const averageMessagesPerConversation = totalConversations > 0 
+    ? totalMessages / totalConversations 
+    : 0;
+  
+  // Calculate completion rate (sessions with more than 1 message)
+  const sessionsWithMessages = sessions?.filter((session: any) => 
+    messages?.some((msg: any) => msg.chat_session_id === session.id)
+  ).length || 0;
+  
+  const conversationCompletionRate = totalConversations > 0 
+    ? (sessionsWithMessages / totalConversations) * 100 
+    : 0;
+  
+  // Content sources status
+  const contentSourcesStatus = {
+    total: contentSources?.length || 0,
+    processed: contentSources?.filter((cs: any) => cs.indexing_status === 'completed').length || 0,
+    processing: contentSources?.filter((cs: any) => cs.indexing_status === 'processing').length || 0,
+    failed: contentSources?.filter((cs: any) => cs.indexing_status === 'failed').length || 0,
+  };
+  
+  // Calculate technical metrics
+  const technicalMetrics = calculateTechnicalMetrics(messages || []);
+  
+  // Calculate content utilization
+  const contentUtilization = calculateContentUtilization(contentSources || [], documentChunks || []);
+  
+  // Generate daily stats
+  const dailyStats = generateDailyStats(sessions || [], messages || [], timeRange);
+  
+  return {
+    totalConversations,
+    totalMessages,
+    activeUsers: registeredUsers,
+    anonymousSessions,
+    averageMessagesPerConversation,
+    conversationCompletionRate,
+    contentSources: contentSourcesStatus,
+    dailyStats,
+    userTypes: {
+      registered: registeredUsers,
+      anonymous: anonymousSessions,
+    },
+    technicalMetrics,
+    contentUtilization,
+  };
+}
+
+/**
+ * Calculate technical performance metrics from messages
+ */
+function calculateTechnicalMetrics(messages: any[]) {
+  if (!messages || messages.length === 0) {
+    return {
+      averageResponseTime: 0,
+      errorRate: 0,
+      totalResponses: 0,
+      failedResponses: 0,
+    };
+  }
+  
+  // Group messages by session to calculate response times
+  const sessionMessages = messages.reduce((acc: any, msg: any) => {
+    if (!acc[msg.chat_session_id]) {
+      acc[msg.chat_session_id] = [];
+    }
+    acc[msg.chat_session_id].push(msg);
+    return acc;
+  }, {});
+  
+  let totalResponseTime = 0;
+  let responseCount = 0;
+  let totalBotResponses = 0;
+  
+  // Calculate response times for each session
+  Object.values(sessionMessages).forEach((sessionMsgs: any) => {
+    // Sort messages by created_at
+    sessionMsgs.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    
+    for (let i = 0; i < sessionMsgs.length - 1; i++) {
+      const currentMsg = sessionMsgs[i];
+      const nextMsg = sessionMsgs[i + 1];
+      
+      // If current is user message and next is assistant message
+      if (currentMsg.role === 'user' && nextMsg.role === 'assistant') {
+        const responseTime = (new Date(nextMsg.created_at).getTime() - new Date(currentMsg.created_at).getTime()) / 1000;
+        
+        // Only count reasonable response times (between 0.1s and 300s)
+        if (responseTime > 0.1 && responseTime < 300) {
+          totalResponseTime += responseTime;
+          responseCount++;
+        }
+        
+        totalBotResponses++;
+      }
+    }
+  });
+  
+  const averageResponseTime = responseCount > 0 ? totalResponseTime / responseCount : 0;
+  
+  // For now, we'll set error rate to 0 since we don't have reliable error tracking
+  // This can be enhanced later when proper error logging is implemented
+  const errorRate = 0;
+  const failedResponses = 0;
+  
+  return {
+    averageResponseTime: Math.round(averageResponseTime * 10) / 10, // Round to 1 decimal
+    errorRate,
+    totalResponses: totalBotResponses,
+    failedResponses,
+  };
+}
+
+/**
+ * Calculate content utilization metrics
+ */
+function calculateContentUtilization(contentSources: any[], documentChunks: any[]) {
+  if (!documentChunks || documentChunks.length === 0) {
+    return {
+      totalChunks: 0,
+      utilizedChunks: 0,
+      utilizationRate: 0,
+      topSources: [],
+    };
+  }
+  
+  const totalChunks = documentChunks.length;
+  const utilizedChunks = documentChunks.filter((chunk: any) => (chunk.usage_count || 0) > 0).length;
+  const utilizationRate = totalChunks > 0 ? (utilizedChunks / totalChunks) * 100 : 0;
+  
+  // Calculate usage by source
+  const sourceUsage = documentChunks.reduce((acc: any, chunk: any) => {
+    const sourceId = chunk.content_source_id;
+    if (!acc[sourceId]) {
+      acc[sourceId] = 0;
+    }
+    acc[sourceId] += chunk.usage_count || 0;
+    return acc;
+  }, {});
+  
+  // Get top sources with their titles
+  const topSources = Object.entries(sourceUsage)
+    .map(([sourceId, usageCount]: [string, any]) => {
+      const source = contentSources.find((cs: any) => cs.id === sourceId);
+      return {
+        title: source?.title || 'Unknown Source',
+        usage_count: usageCount,
+      };
+    })
+    .sort((a, b) => b.usage_count - a.usage_count)
+    .slice(0, 5); // Top 5 sources
+  
+  return {
+    totalChunks,
+    utilizedChunks,
+    utilizationRate: Math.round(utilizationRate * 10) / 10,
+    topSources,
+  };
+}
+
+/**
+ * Fetches content sources analytics for a chatbot
+ * @param chatbotId - The ID of the chatbot
+ * @param userId - The ID of the user (for RLS)
+ * @returns Content sources data or throws an error
+ */
+export async function getChatbotContentAnalytics(chatbotId: string, userId: string) {
+  const supabase = await createClient();
+  
+  // First verify the user owns this chatbot
+  const { data: chatbot, error: chatbotError } = await supabase
+    .from('chatbots')
+    .select('id')
+    .eq('id', chatbotId)
+    .eq('user_id', userId)
+    .single();
+    
+  if (chatbotError || !chatbot) {
+    throw new Error('Chatbot not found or access denied');
+  }
+  
+  const { data: contentSources, error } = await supabase
+    .from('chatbot_content_sources')
+    .select('id, source_type, indexing_status, title, created_at, processed_at')
+    .eq('chatbot_id', chatbotId)
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    throw new Error(`Failed to fetch content sources: ${error.message}`);
+  }
+  
+  return contentSources || [];
+}
+
+/**
+ * Fetches recent activity for a chatbot
+ * @param chatbotId - The ID of the chatbot
+ * @param userId - The ID of the user (for RLS)
+ * @param limit - Number of recent activities to fetch
+ * @returns Recent activity data or throws an error
+ */
+export async function getChatbotRecentActivity(chatbotId: string, userId: string, limit: number = 10) {
+  const supabase = await createClient();
+  
+  // First verify the user owns this chatbot
+  const { data: chatbot, error: chatbotError } = await supabase
+    .from('chatbots')
+    .select('id')
+    .eq('id', chatbotId)
+    .eq('user_id', userId)
+    .single();
+    
+  if (chatbotError || !chatbot) {
+    throw new Error('Chatbot not found or access denied');
+  }
+  
+  const { data: recentSessions, error } = await supabase
+    .from('chat_sessions')
+    .select(`
+      id,
+      name,
+      created_at,
+      updated_at,
+      user_id
+    `)
+    .eq('chatbot_id', chatbotId)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) {
+    throw new Error(`Failed to fetch recent activity: ${error.message}`);
+  }
+  
+  return recentSessions || [];
 }
 
 // We can add more query functions here later, e.g.:
