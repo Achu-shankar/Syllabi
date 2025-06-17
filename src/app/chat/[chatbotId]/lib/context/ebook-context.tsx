@@ -6,11 +6,13 @@ export interface EbookContextType {
     currentDocument: ContentSource | null;
     currentTimestamp: number | null; // For multimedia content only
     isLoading: boolean;
+    isChatHidden: boolean; // New: for hiding chat panel
     openEbookPanel: (documentId?: string) => void;
     closeEbookPanel: () => void;
     selectDocument: (document: ContentSource, timestamp?: number) => void; // Removed pageNumber, only timestamp for multimedia
     navigateToTimestamp: (timestamp: number) => void; // For multimedia navigation only
     setIsLoadingEbook: (loading: boolean) => void;
+    toggleChatVisibility: () => void; // New: toggle chat panel visibility
 }
 
 const EbookContext = createContext<EbookContextType | undefined>(undefined)
@@ -20,6 +22,7 @@ const EbookProvider = ({children}:{children:ReactNode})=>{
     const [currentDocument, setCurrentDocument] = useState<ContentSource | null>(null);
     const [currentTimestamp, setCurrentTimestamp] = useState<number | null>(null);
     const [isLoadingEbook, setIsLoadingEbook] = useState(false);
+    const [isChatHidden, setIsChatHidden] = useState(false);
 
     const openEbookPanel = (documentId?: string) => {
         setIsEbookPanelOpen(true);
@@ -59,17 +62,24 @@ const EbookProvider = ({children}:{children:ReactNode})=>{
         // No loading needed for timestamp navigation
     }
 
+    const toggleChatVisibility = () => {
+        console.log(`[EbookContext] Toggling chat visibility from ${isChatHidden} to ${!isChatHidden}`);
+        setIsChatHidden(!isChatHidden);
+    }
+
     return (
         <EbookContext.Provider value={{
             isEbookPanelOpen, 
             currentDocument, 
             currentTimestamp,
             isLoading: isLoadingEbook, 
+            isChatHidden,
             openEbookPanel, 
             closeEbookPanel, 
             selectDocument,
             navigateToTimestamp,
-            setIsLoadingEbook
+            setIsLoadingEbook,
+            toggleChatVisibility
         }}>
             {children}
         </EbookContext.Provider>

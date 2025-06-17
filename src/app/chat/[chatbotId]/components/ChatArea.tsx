@@ -1,15 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useChat, type Message, type CreateMessage } from '@ai-sdk/react';
-import { useParams } from 'next/navigation'; // To get projectId
+import { useChat, type Message } from '@ai-sdk/react';
 import { useQueryClient } from '@tanstack/react-query'; // <-- Import useQueryClient
 import { createClient } from '@/utils/supabase/client';
 // import { CodeRuntimesProvider } from '../lib/useCodeRuntimes'; // Import the provider
 
-import MessageList from './MessageList';
 import { MultimodalInput } from './multimodal-input';
-import { useFetchInitialMessages } from '../lib/hooks'; // Import the new hook
 import { generateUUID } from '../lib/utils';
 import { Messages } from './messages/messages';
 import { Greeting } from './messages/greeting';
@@ -32,9 +29,6 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
    // Get the chatbot slug from URL params
   
   const queryClient = useQueryClient();
-
-  // Ref to store the last *user* message just before submission
-  const lastSubmittedUserMessageRef = useRef<Message | null>(null);
 
   // Type for user data
   interface User {
@@ -63,7 +57,6 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
     append,
     status,
     stop,
-    error,
     setMessages, 
     reload,
   } = useChat({
@@ -77,7 +70,7 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
               chat_session_id: activeSessionId,
               chatbotSlug: chatbotSlug, // Pass the chatbot slug to the API
             },
-            onFinish: (assistantMessage) => {
+            onFinish: () => {
               queryClient.invalidateQueries({ queryKey: ['sessionList'] })
             },
             onError: (err) => {

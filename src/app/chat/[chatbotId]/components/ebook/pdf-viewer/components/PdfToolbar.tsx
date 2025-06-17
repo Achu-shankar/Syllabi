@@ -14,13 +14,9 @@ import {
     SearchIcon, 
     ArrowUpIcon, // For Previous Match
     ArrowDownIcon, // For Next Match
-    CaseSensitiveIcon, // Placeholder for Aa - will use Lucide or custom SVG
-    WholeWordIcon, // Placeholder for W - will use Lucide or custom SVG
-    SparklesIcon, // Placeholder for Diacritics - will use Lucide or custom SVG
     XIcon // For clearing search
 } from 'lucide-react'; 
 import { usePdfViewerStore, SearchOptions } from '../store/pdfViewerStore'; // Import the store and SearchOptions type
-import { cn } from '@/lib/utils'; // For conditional class names
 import {
     Popover,
     PopoverContent,
