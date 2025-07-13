@@ -120,7 +120,7 @@ function ChatHeader({
           <SidebarTrigger 
             className="-ml-1 animate-fade-in" 
             style={{
-              color: themeVars.sidebarTextColor,
+              color: themeVars.primaryColor,
             }}
           />
         ) : (
@@ -392,6 +392,7 @@ function ChatLayoutContent({ children, slug }: { children: React.ReactNode; slug
       openEbookPanel(); 
     }
   };
+
 
   // Show loading state
   if (isLoading) {

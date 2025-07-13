@@ -27,7 +27,7 @@ export default function ChatbotDetailLayout({
             <ChatbotHeader chatbotId={params.chatbotId} /> 
             Could include a SidebarTrigger if the main trigger is not global 
             */} 
-            <header className="flex h-12 shrink-0 items-center px-2 gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+            <header className="flex h-12 shrink-0 items-center border-b px-2 gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
                 <SidebarTrigger /> {/* Assuming this is a global trigger or adaptable */}
             </header>
             <main className="flex-1 overflow-y-auto">

@@ -1,0 +1,40 @@
+{
+  "name": "get_weather", 
+  "display_name": "Get Weather",
+  "description": "Get current weather information for any city worldwide",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "get_weather",
+    "description": "Get current weather information for any city worldwide",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "city": {
+          "type": "string",
+          "description": "City name (e.g., 'London', 'New York', 'Tokyo')"
+        },
+        "units": {
+          "type": "string",
+          "description": "Temperature units (metric, imperial, kelvin)",
+          "default": "metric"
+        },
+        "appid": {
+          "type": "string",
+          "description": "OpenWeatherMap API key - get free at openweathermap.org/api"
+        }
+      },
+      "required": ["city", "appid"]
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "https://api.openweathermap.org/data/2.5/weather",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

@@ -2,32 +2,14 @@
 
 import * as React from "react"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
-  CreditCard,
-  UserCircle,
-  LayoutDashboard,
-  Cog,
-  BarChart3,
-  FileText,
-  CreditCardIcon,
-  DollarSign,
-  ListChecks,
-  Receipt,
-  Palette,
-  Share2,
-  ShieldCheck,
-  MessageSquareText,
-  ListTree,
-} from "lucide-react"
+  Brain,
+  ChartBar,
+  Database,
+  Gear,
+  Layout,
+  ShareNetwork,
+  ChatCircleDots, // New Icon
+} from "@phosphor-icons/react"
 
 import { NavMain } from "@/app/dashboard/(overview)/components/nav-main"
 import { NavUser } from "@/app/dashboard/(overview)/components/nav-user"
@@ -49,56 +31,67 @@ export function AppSidebar({ chatbotId, ...props }: AppSidebarProps) {
   {
       title: "Overview",
       url: `/dashboard/chatbots/${chatbotId}`,
-      icon: LayoutDashboard,
+      icon: Layout,
     },
     {
-      title: "Library",
+      title: "Knowledge Base",
       url: `/dashboard/chatbots/${chatbotId}/library`,
-      icon: ListTree,
+      icon: Database,
+    },
+    {
+      title: "Skills",
+      url: `/dashboard/chatbots/${chatbotId}/skills`,
+      icon: Brain,
     },
     {
       title: "Analytics",
       url: `/dashboard/chatbots/${chatbotId}/analytics`,
-      icon: BarChart3,
+      icon: ChartBar,
   },
   {
       title: "Settings",
-      icon: Settings2,
-      url: `/dashboard/chatbots/${chatbotId}/settings/general`,
-    items: [
-      {
-          title: "General",
-          url: `/dashboard/chatbots/${chatbotId}/settings/general`,
-      },
-      {
-          title: "Appearance",
-          url: `/dashboard/chatbots/${chatbotId}/settings/appearance`,
-      },
-      {
-          title: "Behavior",
-          url: `/dashboard/chatbots/${chatbotId}/settings/behavior`,
-      },
-    ],
+      icon: Gear,
+      url: `/dashboard/chatbots/${chatbotId}/settings`,
+    // items: [
+    //   {
+    //       title: "General",
+    //       url: `/dashboard/chatbots/${chatbotId}/settings/general`,
+    //   },
+    //   {
+    //       title: "Appearance",
+    //       url: `/dashboard/chatbots/${chatbotId}/settings/appearance`,
+    //   },
+    //   {
+    //       title: "Behavior",
+    //       url: `/dashboard/chatbots/${chatbotId}/settings/behavior`,
+    //   },
+    // ],
   },
   {
       title: "Sharing & Embed",
       url: `/dashboard/chatbots/${chatbotId}/sharing`,
-      icon: Share2,
+      icon: ShareNetwork,
+    },
+    {
+      title: "Channels",
+      url: `/dashboard/chatbots/${chatbotId}/channels`,
+      icon: ChatCircleDots,
     },
   ];
 
   return (
-    <Sidebar collapsible="icon" {...props} className="bg-sidebar">
-      <SidebarHeader className="p-2">
-        <Link href="/dashboard" className="flex items-center justify-start gap-2 p-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-md">
-            <Image src="/syllabi_logo.png" alt="Syllabi.io Logo" width={16} height={16} />
-            <span className="font-semibold text-xl group-data-[collapsible=icon]:hidden">Syllabi.io</span>
+    <Sidebar {...props} className="border-r border-border p-4 bg-sidebar">
+      <SidebarHeader className="mb-8">
+        <Link href="/dashboard" className="flex items-center justify-start gap-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-md">
+            <Image src="/syllabi_logo.png" alt="Syllabi Logo" width={24} height={24} />
+            <span className="font-semibold text-xl uppercase tracking-wide">Syllabi</span>
         </Link>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems}  />
       </SidebarContent>
       <SidebarFooter>
+        <hr className="my-4" />
         {/* NavUser will handle fetching/displaying user info and logout */}
         <NavUser />
       </SidebarFooter>

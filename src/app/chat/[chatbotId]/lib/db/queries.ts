@@ -11,6 +11,9 @@ export interface ChatSession {
     user_id: string | null;
     chatbot_id: string;
     chatbot_slug: string;
+    source?: 'full' | 'embedded';
+    referrer?: string;
+    embedded_config?: any;
     updated_at: string;
     created_at: string;
 }
@@ -104,7 +107,12 @@ export async function saveOrUpdateChatMessages(
     sessionId: string,
     chatbotSlug: string,
     messagesToSave: Message[],
-    tokenCount: number = 0
+    tokenCount: number = 0,
+    sessionMetadata?: {
+      source?: 'full' | 'embedded';
+      referrer?: string;
+      embeddedConfig?: any;
+    }
   ): Promise<void> {
     if (!sessionId || !chatbotSlug || messagesToSave.length === 0) {
       console.warn('[Queries] saveOrUpdateChatMessages called with invalid parameters.', { userId, sessionId, chatbotSlug, messagesCount: messagesToSave.length });
@@ -161,6 +169,9 @@ export async function saveOrUpdateChatMessages(
             chatbot_id: chatbotId, // Use chatbot_id instead of slug
             chatbot_slug: chatbotSlug, // Keep for backward compatibility
             name: sessionName,
+            source: sessionMetadata?.source || 'full',
+            referrer: sessionMetadata?.referrer || null,
+            embedded_config: sessionMetadata?.embeddedConfig || null,
             // created_at and updated_at have defaults
           });
   
@@ -371,6 +382,7 @@ export interface ChatbotConfig {
   ai_model_identifier: string | null;
   system_prompt: string | null;
   temperature: number | null;
+  tool_selection_method: 'direct' | 'semantic_retrieval' | null;
 }
 
 /**
@@ -384,7 +396,7 @@ export async function getChatbotConfig(chatbotId: string): Promise<ChatbotConfig
   try {
     const { data, error } = await supabase
       .from('chatbots')
-      .select('ai_model_identifier, system_prompt, temperature')
+      .select('ai_model_identifier, system_prompt, temperature, tool_selection_method')
       .eq('id', chatbotId)
       .single();
 
@@ -396,7 +408,8 @@ export async function getChatbotConfig(chatbotId: string): Promise<ChatbotConfig
     return {
       ai_model_identifier: data.ai_model_identifier,
       system_prompt: data.system_prompt,
-      temperature: data.temperature
+      temperature: data.temperature,
+      tool_selection_method: data.tool_selection_method
     };
   } catch (error) {
     console.error('[Queries] Error in getChatbotConfig:', error);

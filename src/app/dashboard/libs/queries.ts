@@ -2,6 +2,7 @@
 
 import 'server-only';
 import { createClient } from '../../../utils/supabase/server';
+import { createServiceClient } from '@/utils/supabase/service';
 import { cookies } from 'next/headers';
 import { generateSlugFromText, generateRandomSuffix } from './slug-utils';
 
@@ -42,6 +43,23 @@ export interface ThemeConfig {
   [key: string]: any; 
 }
 
+// NEW: Enhanced theme structure for chatbots
+export interface EnhancedThemeConfig {
+  source: {
+    type: 'default' | 'custom';
+    themeId?: string; // For default themes
+    customThemeId?: string; // For custom themes
+    lastSyncedAt?: string;
+  };
+  config: ThemeConfig;
+  customizations?: {
+    hasCustomColors?: boolean;
+    hasCustomAvatars?: boolean;
+    hasCustomFonts?: boolean;
+    [key: string]: any;
+  };
+}
+
 // Enum types matching the database
 export type ChatbotVisibility = 'private' | 'public' | 'shared';
 export type ChatbotRole = 'viewer' | 'editor';
@@ -55,7 +73,7 @@ export interface Chatbot {
   student_facing_name?: string | null;
   logo_url?: string | null; // This is the AI Assistant Logo
   welcome_message?: string | null;
-  theme: ThemeConfig; // Updated from any
+  theme: EnhancedThemeConfig | ThemeConfig; // Updated to support both old and new formats
   ai_model_identifier?: string | null; // NEW
   system_prompt?: string | null; // NEW
   temperature?: number | null; // NEW, e.g., 0.7
@@ -124,7 +142,7 @@ export interface UpdateChatbotPayload {
   student_facing_name?: string | null;
   logo_url?: string | null;
   welcome_message?: string;
-  theme?: ThemeConfig; // Updated
+  theme?: EnhancedThemeConfig | ThemeConfig; // Updated to support both formats
   ai_model_identifier?: string;
   system_prompt?: string;
   temperature?: number;
@@ -227,6 +245,213 @@ export async function getChatbotById(chatbotId: string, userId: string): Promise
     }
   }
   return data as Chatbot | null;
+}
+
+/**
+ * Fetches all integrations for a specific user from the unified connected_integrations table.
+ * This is used for the main Integrations Hub page.
+ * @param userId - The UUID of the user.
+ * @returns A promise that resolves to an array of all integration connections.
+ */
+export async function getIntegrationsForUser(userId: string) {
+  const supabase = createServiceClient();
+  
+  const { data, error } = await supabase
+    .from('connected_integrations')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching integrations:', error);
+    throw new Error('Could not fetch integrations.');
+  }
+
+  return data || [];
+}
+
+/**
+ * Legacy function for Slack connections - now uses unified table
+ * @deprecated Use getIntegrationsForUser instead
+ */
+export async function getSlackConnectionsForUser(userId: string) {
+  const allIntegrations = await getIntegrationsForUser(userId);
+  return allIntegrations
+    .filter(integration => integration.integration_type === 'slack')
+    .map(integration => ({
+      id: integration.id,
+      team_id: integration.metadata?.team_id || '',
+      team_name: integration.metadata?.team_name || '',
+      created_at: integration.created_at,
+      bot_user_id: integration.metadata?.bot_user_id || null
+    }));
+}
+
+/**
+ * Legacy function for Discord connections - now uses unified table
+ * @deprecated Use getIntegrationsForUser instead
+ */
+export async function getDiscordConnectionsForUser(userId: string) {
+  const allIntegrations = await getIntegrationsForUser(userId);
+  return allIntegrations
+    .filter(integration => integration.integration_type === 'discord')
+    .map(integration => ({
+      id: integration.id,
+      guild_id: integration.metadata?.guild_id || '',
+      guild_name: integration.metadata?.guild_name || '',
+      created_at: integration.created_at
+    }));
+}
+
+/**
+ * Disconnects a Discord guild for a user.
+ * Verifies that the user owns chatbots linked to this guild before deleting.
+ * @param guildId - The internal UUID of the guild to disconnect.
+ * @param userId - The UUID of the user requesting the disconnection.
+ * @returns A promise that resolves when the operation is complete.
+ */
+export async function disconnectDiscordGuild(guildId: string, userId: string) {
+    const supabase = createServiceClient();
+
+    // Fetch guild details
+    const { data: guildRow, error: guildFetchError } = await supabase
+        .from('discord_guilds')
+        .select('id, installed_by_user_id')
+        .eq('id', guildId)
+        .single();
+
+    if (guildFetchError || !guildRow) {
+        throw new Error('Discord guild not found.');
+    }
+
+    // If the current user installed the bot, allow immediate disconnect
+    if (guildRow.installed_by_user_id === userId) {
+        const { error: deleteErr } = await supabase
+            .from('discord_guilds')
+            .delete()
+            .eq('id', guildId);
+        if (deleteErr) {
+            throw new Error('Could not disconnect Discord guild.');
+        }
+        return { success: true };
+    }
+
+    // Fallback: verify ownership via linked chatbots
+    const { data: linkedChatbots, error: ownerError } = await supabase
+        .from('discord_guild_chatbots')
+        .select('id, chatbots ( user_id )')
+        .eq('guild_id', guildId);
+
+    if (ownerError || !linkedChatbots || linkedChatbots.length === 0) {
+        throw new Error('You are not authorized to disconnect this guild.');
+    }
+
+    const userOwnsLinkedChatbot = linkedChatbots.some((link: any) => link.chatbots && link.chatbots.user_id === userId);
+
+    if (!userOwnsLinkedChatbot) {
+        throw new Error('You are not authorized to disconnect this guild.');
+    }
+
+    const { error: deleteError } = await supabase
+        .from('discord_guilds')
+        .delete()
+        .eq('id', guildId);
+
+    if (deleteError) {
+        console.error('Error disconnecting Discord guild:', deleteError);
+        throw new Error('Could not disconnect Discord guild.');
+    }
+
+    return { success: true };
+}
+
+/**
+ * Disconnects a Slack workspace for a user.
+ * Verifies that the user initiated the original connection before deleting.
+ * @param workspaceId - The internal UUID of the workspace to disconnect.
+ * @param userId - The UUID of the user requesting the disconnection.
+ * @returns A promise that resolves when the operation is complete.
+ */
+export async function disconnectSlackWorkspace(workspaceId: string, userId: string) {
+    const supabase = createServiceClient();
+
+    // 1. Verify ownership of the workspace by internal UUID (id)
+    const { data: workspace, error: ownerError } = await supabase
+        .from('slack_workspaces')
+        .select('id, installed_by')
+        .eq('id', workspaceId)
+        .single();
+
+    if (ownerError || !workspace) {
+        throw new Error('Slack workspace not found or you do not have permission to disconnect it.');
+    }
+
+    if (workspace.installed_by !== userId) {
+        throw new Error('You are not authorized to disconnect this workspace.');
+    }
+
+    // 2. Proceed with deletion (ON DELETE CASCADE will clean up linked chatbots)
+    const { error: deleteError } = await supabase
+        .from('slack_workspaces')
+        .delete()
+        .eq('id', workspace.id);
+    
+    if (deleteError) {
+        console.error('Error disconnecting Slack workspace:', deleteError);
+        throw new Error('Could not disconnect Slack workspace.');
+    }
+
+    return { success: true };
+}
+
+/**
+ * Legacy function for Alexa connections - now uses unified table
+ * @deprecated Use getIntegrationsForUser instead
+ */
+export async function getAlexaConnectionsForUser(userId: string) {
+  const allIntegrations = await getIntegrationsForUser(userId);
+  return allIntegrations
+    .filter(integration => integration.integration_type === 'alexa')
+    .map(integration => ({
+      id: integration.id,
+      amazon_user_id: integration.metadata?.amazon_user_id || '',
+      created_at: integration.created_at
+    }));
+}
+
+/**
+ * Disconnects an Alexa account for a user
+ * @param accountId - The ID of the Alexa account to disconnect
+ * @param userId - The ID of the user (for ownership verification)
+ * @returns Success confirmation or throws an error
+ */
+export async function disconnectAlexaAccount(accountId: string, userId: string) {
+  const supabase = await createClient();
+
+  // First verify the user owns this account
+  const { data: account, error: accountError } = await supabase
+    .from('alexa_accounts')
+    .select('id')
+    .eq('id', accountId)
+    .eq('user_id', userId)
+    .single();
+
+  if (accountError || !account) {
+    throw new Error('Alexa account not found or access denied');
+  }
+
+  // Delete the account and all its linked chatbots (cascade delete via FK)
+  const { error: deleteError } = await supabase
+    .from('alexa_accounts')
+    .delete()
+    .eq('id', accountId)
+    .eq('user_id', userId);
+
+  if (deleteError) {
+    throw new Error(`Failed to disconnect Alexa account: ${deleteError.message}`);
+  }
+
+  return { success: true };
 }
 
 /**
@@ -949,3 +1174,372 @@ export async function getChatbotRecentActivity(chatbotId: string, userId: string
 // export async function getChatbotById(chatbotId: string, userId: string): Promise<Chatbot | null> { ... }
 // export async function updateChatbot(chatbotId: string, userId: string, updates: Partial<Chatbot>): Promise<Chatbot> { ... }
 // export async function deleteChatbot(chatbotId: string, userId: string): Promise<void> { ... }
+
+// --- Theme Management ---
+
+export interface DefaultTheme {
+  id: string;
+  theme_id: string;
+  name: string;
+  description?: string | null;
+  category: string;
+  theme_config: ThemeConfig;
+  preview_image_url?: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserCustomTheme {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string | null;
+  theme_config: ThemeConfig;
+  based_on_default_theme_id?: string | null;
+  is_favorite: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCustomThemePayload {
+  name: string;
+  description?: string;
+  theme_config: ThemeConfig;
+  based_on_default_theme_id?: string;
+  is_favorite?: boolean;
+}
+
+export interface UpdateCustomThemePayload {
+  name?: string;
+  description?: string;
+  theme_config?: ThemeConfig;
+  based_on_default_theme_id?: string;
+  is_favorite?: boolean;
+}
+
+export type ThemeSource = 
+  | { type: 'default'; themeId: string }
+  | { type: 'custom'; customThemeId: string };
+
+export interface AvailableThemes {
+  default: DefaultTheme[];
+  custom: UserCustomTheme[];
+}
+
+/**
+ * Fetches all active default themes
+ * @returns List of default themes or throws an error
+ */
+export async function getDefaultThemes(): Promise<DefaultTheme[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('default_themes')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching default themes:', error);
+    throw new Error(`Failed to fetch default themes: ${error.message}`);
+  }
+
+  return (data as DefaultTheme[]) || [];
+}
+
+/**
+ * Fetches all custom themes for a specific user
+ * @param userId - The ID of the user
+ * @returns List of user's custom themes or throws an error
+ */
+export async function getUserCustomThemes(userId: string): Promise<UserCustomTheme[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('user_custom_themes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user custom themes:', error);
+    throw new Error(`Failed to fetch custom themes: ${error.message}`);
+  }
+
+  return (data as UserCustomTheme[]) || [];
+}
+
+/**
+ * Fetches all available themes (default + custom) for a user
+ * @param userId - The ID of the user
+ * @returns Object containing default and custom themes
+ */
+export async function getAvailableThemes(userId: string): Promise<AvailableThemes> {
+  const [defaultThemes, customThemes] = await Promise.all([
+    getDefaultThemes(),
+    getUserCustomThemes(userId)
+  ]);
+
+  return {
+    default: defaultThemes,
+    custom: customThemes
+  };
+}
+
+/**
+ * Fetches a specific default theme by theme_id
+ * @param themeId - The theme_id of the default theme
+ * @returns Default theme or null if not found
+ */
+export async function getDefaultTheme(themeId: string): Promise<DefaultTheme | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('default_themes')
+    .select('*')
+    .eq('theme_id', themeId)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching default theme:', error);
+    if (error.code !== 'PGRST116') {
+      throw new Error(`Failed to fetch default theme: ${error.message}`);
+    }
+  }
+
+  return data as DefaultTheme | null;
+}
+
+/**
+ * Fetches a specific custom theme by ID, ensuring user ownership
+ * @param themeId - The ID of the custom theme
+ * @param userId - The ID of the user (for ownership check)
+ * @returns Custom theme or null if not found/not owned
+ */
+export async function getCustomTheme(themeId: string, userId: string): Promise<UserCustomTheme | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('user_custom_themes')
+    .select('*')
+    .eq('id', themeId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching custom theme:', error);
+    if (error.code !== 'PGRST116') {
+      throw new Error(`Failed to fetch custom theme: ${error.message}`);
+    }
+  }
+
+  return data as UserCustomTheme | null;
+}
+
+/**
+ * Gets complete theme data for chatbot application
+ * @param source - Theme source information
+ * @param userId - The ID of the user (for custom theme access)
+ * @returns Complete theme configuration
+ */
+export async function getThemeForChatbot(source: ThemeSource, userId: string): Promise<ThemeConfig | null> {
+  if (source.type === 'default') {
+    const theme = await getDefaultTheme(source.themeId);
+    return theme?.theme_config || null;
+  } else {
+    const theme = await getCustomTheme(source.customThemeId, userId);
+    return theme?.theme_config || null;
+  }
+}
+
+/**
+ * Creates a new custom theme for a user
+ * @param userId - The ID of the user creating the theme
+ * @param themeData - The theme data to create
+ * @returns The newly created custom theme
+ */
+export async function createCustomTheme(
+  userId: string,
+  themeData: CreateCustomThemePayload
+): Promise<UserCustomTheme> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('user_custom_themes')
+    .insert([{
+      user_id: userId,
+      ...themeData,
+      is_favorite: themeData.is_favorite ?? false
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating custom theme:', error);
+    throw new Error(`Failed to create custom theme: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to create custom theme: No data returned.');
+  }
+
+  return data as UserCustomTheme;
+}
+
+/**
+ * Updates an existing custom theme
+ * @param themeId - The ID of the custom theme to update
+ * @param userId - The ID of the user (for ownership check)
+ * @param updates - The updates to apply
+ * @returns The updated custom theme
+ */
+export async function updateCustomTheme(
+  themeId: string,
+  userId: string,
+  updates: UpdateCustomThemePayload
+): Promise<UserCustomTheme> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('user_custom_themes')
+    .update(updates)
+    .eq('id', themeId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating custom theme:', error);
+    throw new Error(`Failed to update custom theme: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to update custom theme or theme not found for user.');
+  }
+
+  return data as UserCustomTheme;
+}
+
+/**
+ * Deletes a custom theme
+ * @param themeId - The ID of the custom theme to delete
+ * @param userId - The ID of the user (for ownership check)
+ * @returns void or throws an error
+ */
+export async function deleteCustomTheme(themeId: string, userId: string): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('user_custom_themes')
+    .delete()
+    .eq('id', themeId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error deleting custom theme:', error);
+    throw new Error(`Failed to delete custom theme: ${error.message}`);
+  }
+}
+
+/**
+ * Duplicates an existing theme (default or custom) as a new custom theme
+ * @param userId - The ID of the user creating the duplicate
+ * @param source - The source theme to duplicate
+ * @param newName - The name for the new theme
+ * @param newDescription - Optional description for the new theme
+ * @returns The newly created custom theme
+ */
+export async function duplicateTheme(
+  userId: string,
+  source: ThemeSource,
+  newName: string,
+  newDescription?: string
+): Promise<UserCustomTheme> {
+  // First get the source theme config
+  let sourceThemeConfig: ThemeConfig;
+  let basedOnThemeId: string | undefined;
+
+  if (source.type === 'default') {
+    const defaultTheme = await getDefaultTheme(source.themeId);
+    if (!defaultTheme) {
+      throw new Error('Source default theme not found');
+    }
+    sourceThemeConfig = defaultTheme.theme_config;
+    basedOnThemeId = defaultTheme.id;
+  } else {
+    const customTheme = await getCustomTheme(source.customThemeId, userId);
+    if (!customTheme) {
+      throw new Error('Source custom theme not found or access denied');
+    }
+    sourceThemeConfig = customTheme.theme_config;
+    basedOnThemeId = customTheme.based_on_default_theme_id || undefined;
+  }
+
+  // Create the new custom theme
+  return createCustomTheme(userId, {
+    name: newName,
+    description: newDescription,
+    theme_config: sourceThemeConfig,
+    based_on_default_theme_id: basedOnThemeId,
+    is_favorite: false
+  });
+}
+
+/**
+ * Toggles the favorite status of a custom theme
+ * @param themeId - The ID of the custom theme
+ * @param userId - The ID of the user (for ownership check)
+ * @returns The updated custom theme
+ */
+export async function toggleThemeFavorite(themeId: string, userId: string): Promise<UserCustomTheme> {
+  const supabase = await createClient();
+
+  // First get the current favorite status
+  const currentTheme = await getCustomTheme(themeId, userId);
+  if (!currentTheme) {
+    throw new Error('Custom theme not found or access denied');
+  }
+
+  // Toggle the favorite status
+  return updateCustomTheme(themeId, userId, {
+    is_favorite: !currentTheme.is_favorite
+  });
+}
+
+/**
+ * Checks if a custom theme name already exists for a user
+ * @param userId - The ID of the user
+ * @param name - The theme name to check
+ * @param excludeId - Optional ID to exclude from check (for updates)
+ * @returns True if name exists, false otherwise
+ */
+export async function checkCustomThemeNameExists(
+  userId: string, 
+  name: string, 
+  excludeId?: string
+): Promise<boolean> {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from('user_custom_themes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('name', name);
+
+  if (excludeId) {
+    query = query.neq('id', excludeId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error('Error checking theme name existence:', error);
+    // If there's an error, assume it exists to be safe
+    return true;
+  }
+
+  return data !== null;
+}

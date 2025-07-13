@@ -1,0 +1,58 @@
+{
+    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.16",
+    "version": "1.0.0",
+    "id": "0bd241bd-ea5b-442c-a697-25cc3072b11b",
+    "packageName": "com.syllabi.bot",
+    "developer": {
+      "name": "Syllabi",
+      "websiteUrl": "https://0a95ee576cb0.ngrok-free.app",
+      "privacyUrl": "https://0a95ee576cb0.ngrok-free.app/privacy",
+      "termsOfUseUrl": "https://0a95ee576cb0.ngrok-free.app/terms"
+    },
+    "icons": {
+      "color": "color.png",
+      "outline": "outline.png"
+    },
+    "name": {
+      "short": "SyllabiBot",
+      "full": "SyllabiBot - AI Knowledge Assistant"
+    },
+    "description": {
+      "short": "AI-powered knowledge assistant for your organization",
+      "full": "SyllabiBot helps your team get instant answers from your knowledge base using advanced AI."
+    },
+    "accentColor": "#3B82F6",
+    "bots": [
+      {
+        "botId": "0bd241bd-ea5b-442c-a697-25cc3072b11b",
+        "scopes": [
+          "personal",
+          "team",
+          "groupchat"
+        ],
+        "supportsFiles": false,
+        "isNotificationOnly": false,
+        "commandLists": [
+          {
+            "scopes": [
+              "personal",
+              "team",
+              "groupchat"
+            ],
+            "commands": [
+              {
+                "title": "Ask a question",
+                "description": "Ask SyllabiBot anything from your knowledge base"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "permissions": [
+      "identity",
+      "messageTeamMembers"
+    ],
+    "validDomains": ["0a95ee576cb0.ngrok-free.app"]
+  }

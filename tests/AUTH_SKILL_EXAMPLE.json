@@ -1,0 +1,27 @@
+{
+  "name": "get_secure_data",
+  "display_name": "Get Secure Data",
+  "description": "Access authenticated data with bearer token",
+  "skill_type": "webhook", 
+  "function_schema": {
+    "name": "get_secure_data",
+    "description": "Retrieve secure data that requires authentication",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "http://localhost:8000/secure-data",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer test-secret-token"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

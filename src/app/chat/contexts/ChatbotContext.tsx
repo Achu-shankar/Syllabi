@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { EnhancedThemeConfig, ThemeConfig, ThemeColors } from '../../dashboard/libs/queries';
 
 // Updated to match the PublicChatbot interface from queries
 export interface PublicChatbot {
@@ -9,40 +10,14 @@ export interface PublicChatbot {
   name: string;
   logo_url?: string | null;
   welcome_message?: string | null;
-  theme: ThemeConfig;
+  theme: EnhancedThemeConfig;
   suggested_questions?: string[] | null;
   shareable_url_slug?: string | null;
   visibility: 'private' | 'public' | 'shared';
 }
 
-// Import the ThemeConfig interface
-export interface ThemeColors {
-  primaryColor?: string;
-  headerTextColor?: string;
-  chatWindowBackgroundColor?: string;
-  bubbleUserBackgroundColor?: string;
-  bubbleBotBackgroundColor?: string;
-  inputBackgroundColor?: string;
-  inputTextColor?: string;
-  sidebarBackgroundColor?: string;
-  sidebarTextColor?: string;
-  inputAreaBackgroundColor?: string;
-  bubbleUserTextColor?: string;
-  bubbleBotTextColor?: string;
-  suggestedQuestionChipBackgroundColor?: string;
-  suggestedQuestionChipTextColor?: string;
-  suggestedQuestionChipBorderColor?: string;
-  [key: string]: any;
-}
-
-export interface ThemeConfig {
-  fontFamily?: string;
-  aiMessageAvatarUrl?: string | null;
-  userMessageAvatarUrl?: string | null;
-  light: ThemeColors;
-  dark: ThemeColors;
-  [key: string]: any;
-}
+// Re-export types for convenience
+export type { ThemeColors, ThemeConfig, EnhancedThemeConfig };
 
 // Context state interface
 interface ChatbotContextState {
@@ -158,10 +133,10 @@ export function useChatbotDisplayName(): string {
 }
 
 /**
- * Helper hook to get the chatbot theme with fallback
- * @returns The chatbot theme or undefined
+ * Helper hook to get the chatbot theme (now always enhanced format)
+ * @returns The enhanced chatbot theme or undefined
  */
-export function useChatbotTheme() {
+export function useChatbotTheme(): EnhancedThemeConfig | undefined {
   const { chatbot } = useChatConfig();
   return chatbot?.theme;
 } 

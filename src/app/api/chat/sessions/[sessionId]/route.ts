@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createServiceClient } from '@/utils/supabase/service';
 import { updateChatSessionName, getMessages } from '@/app/chat/[chatbotId]/lib/db/queries';
 
 // GET /api/chat/sessions/[sessionId]?chatbotSlug=<slug>
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { sessionId } = params;
+    const { sessionId } = await params;
     const { searchParams } = new URL(request.url);
     const chatbotSlug = searchParams.get('chatbotSlug');
 
@@ -31,6 +25,39 @@ export async function GET(
         { error: 'chatbotSlug parameter is required' },
         { status: 400 }
       );
+    }
+
+    // First, determine the chatbot visibility using service client
+    const serviceClient = createServiceClient();
+    const { data: chatbot, error: chatbotError } = await serviceClient
+      .from('chatbots')
+      .select('visibility')
+      .eq('shareable_url_slug', chatbotSlug)
+      .single();
+
+    if (chatbotError || !chatbot) {
+      return NextResponse.json({ error: 'Chatbot not found' }, { status: 404 });
+    }
+
+    // Choose the appropriate client based on chatbot visibility
+    let supabase;
+    let userId = null;
+    
+    if (chatbot.visibility === 'public') {
+      // For public chatbots, use service client (no authentication required)
+      supabase = serviceClient;
+      console.log(`[API GET /chat/sessions] Public chatbot - using service client for session: ${sessionId}`);
+    } else {
+      // For private/shared chatbots, require user authentication
+      supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      
+      userId = user.id;
+      console.log(`[API GET /chat/sessions] Private chatbot - authenticated user: ${userId}, Session: ${sessionId}`);
     }
 
     const messages = await getMessages(sessionId);

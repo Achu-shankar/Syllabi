@@ -19,6 +19,7 @@ import { createClient } from '@/utils/supabase/server';
 import { saveOrUpdateChatMessages, getChatbotConfig } from '@/app/chat/[chatbotId]/lib/db/queries';
 import { calculateTokenCost } from '@/app/chat/[chatbotId]/lib/token-utils';
 import { z } from 'zod';
+import { getSkillsAsTools, getOptimalToolSelectionConfig } from '@/services/chat/tools-builder-v2';
 
   
   export const maxDuration = 60;
@@ -98,6 +99,13 @@ import { z } from 'zod';
 
       console.log(`[Chat API] Using model: ${modelToUse}, temperature: ${temperatureToUse}`);
 
+      // Create session metadata for full chatbot sessions
+      const sessionMetadata = {
+        source: 'full' as const,
+        referrer: request.headers.get('referer') || undefined,
+        embeddedConfig: undefined
+      };
+
       // Save user message for both logged-in and anonymous users
       // For logged-in users: user.id, for anonymous: null
       const userId = user?.id || null;
@@ -143,11 +151,40 @@ import { z } from 'zod';
         // Rough token estimation for user message (will be refined when we get the actual prompt tokens)
         const estimatedUserTokens = Math.ceil(userMessage.content.length / 4); // Rough estimation: ~4 characters per token
 
-        await saveOrUpdateChatMessages(userId, id, chatbotSlug, [enrichedUserMessage], estimatedUserTokens);
+        await saveOrUpdateChatMessages(userId, id, chatbotSlug, [enrichedUserMessage], estimatedUserTokens, sessionMetadata);
       } catch (saveError) {
         console.error('[Chat API] Failed to save user message:', saveError);
         // For now, continue with the chat even if saving fails
         // In production, you might want to return an error
+      }
+
+      // === SKILLS INTEGRATION ===
+      // Build context for skill execution
+      const skillExecutionContext = {
+        skillId: '', // Will be set by individual skills
+        chatSessionId: id,
+        userId: userId || undefined,
+        channel: 'web' as const,
+        testMode: false
+      };
+
+      // Get optimal tool selection configuration
+      const toolSelectionConfig = await getOptimalToolSelectionConfig(
+        chatbotId,
+        chatbotConfig.tool_selection_method || undefined,
+        userMessage.content
+      );
+
+      // Get skills as AI tools for this chatbot
+      let skillsTools = {};
+      let skillNames: string[] = [];
+      try {
+        skillsTools = await getSkillsAsTools(chatbotId, skillExecutionContext, toolSelectionConfig);
+        skillNames = Object.keys(skillsTools);
+        console.log(`[Chat API] Loaded ${skillNames.length} skills as tools for chatbot ${chatbotId} using ${toolSelectionConfig.method} method:`, skillNames);
+      } catch (skillsError) {
+        console.error('[Chat API] Failed to load skills as tools:', skillsError);
+        // Continue without skills rather than failing the entire chat
       }
   
   
@@ -160,7 +197,12 @@ import { z } from 'zod';
             temperature: temperatureToUse,
             maxSteps: 5,
             // toolChoice: 'required',
-            experimental_activeTools: ['getRelevantDocuments', 'listAvailableDocuments', 'getMultimediaContent'],
+            experimental_activeTools: [
+              'getRelevantDocuments', 
+              'listAvailableDocuments', 
+              'getMultimediaContent',
+              ...skillNames // Include dynamically loaded skills
+            ] as any,
             // experimental_activeTools:
             //   selectedChatModel === 'chat-model-reasoning'
             //     ? []
@@ -173,6 +215,7 @@ import { z } from 'zod';
             experimental_transform: smoothStream({ chunking: 'word' }),
             experimental_generateMessageId: generateUUID,
             tools: {
+              // === EXISTING KNOWLEDGE BASE TOOLS ===
               getRelevantDocuments: tool({
                 description: 'Get information from the chatbot\'s knowledge base to answer the user\'s question.',
                 parameters: z.object({
@@ -320,6 +363,9 @@ import { z } from 'zod';
                   }
                 },
               }),
+
+              // === CHATBOT SKILLS/ACTIONS ===
+              ...skillsTools,
             },
             onFinish: async ({ response, usage }) => {
               // Save assistant message for both logged-in and anonymous users
@@ -405,7 +451,8 @@ import { z } from 'zod';
                     id,
                     chatbotSlug,
                   [enrichedAssistantMessage],
-                  tokenUsage.totalTokens // Use actual total tokens for the token_count field
+                  tokenUsage.totalTokens, // Use actual total tokens for the token_count field
+                  sessionMetadata // Pass session metadata for consistency
                 );
 
                 console.log(`[Chat API] Saved assistant message with ${tokenUsage.totalTokens} tokens (${tokenUsage.promptTokens} prompt + ${tokenUsage.completionTokens} completion)`);

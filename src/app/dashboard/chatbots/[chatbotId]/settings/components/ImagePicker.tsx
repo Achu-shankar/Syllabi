@@ -19,10 +19,11 @@ interface ImagePickerProps {
   presets?: PresetAvatar[];
   pickerId: string;
   compact?: boolean; 
+  round?: boolean;
 }
 
 export const ImagePicker: React.FC<ImagePickerProps> = (
-  { label, value, onChange, presets = [], pickerId, compact = false }
+  { label, value, onChange, presets = [], pickerId, compact = false, round = false }
 ) => {
   // NOTE: URL input functionality is temporarily disabled but preserved for future use
   // To re-enable URL input functionality, uncomment the sections marked with "URL_FEATURE"
@@ -161,6 +162,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = (
   };
 
   const previewSizeClasses = compact ? "w-16 h-16" : "w-20 h-20";
+  const roundClass = round ? "rounded-full" : "rounded";
   // const inputHeightClass = compact ? "h-8 text-xs" : "h-9 text-sm"; // URL_FEATURE: For URL input styling
   const buttonSizeClass = compact ? "h-8 px-2 text-xs" : "h-9 px-3 text-sm"; 
   const presetButtonClasses = compact ? "h-7 px-2 text-xs py-0.5" : "h-8 px-2.5 text-sm py-1";
@@ -228,7 +230,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = (
       <div className="flex items-start space-x-3">
         {/* Image Preview */}
         {value ? (
-          <div className={`p-1 border border-border rounded bg-background aspect-square ${previewSizeClasses} relative overflow-hidden flex-shrink-0 shadow-sm`}>
+          <div className={`p-1 border border-border ${roundClass} bg-background aspect-square ${previewSizeClasses} relative overflow-hidden flex-shrink-0 shadow-sm`}>
             <Image 
               src={value} 
               alt={`${label} preview`} 
@@ -237,7 +239,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = (
             />
           </div>
         ) : (
-          <div className={`border border-dashed border-border/50 rounded bg-muted/30 aspect-square ${previewSizeClasses} relative flex-shrink-0 shadow-sm flex items-center justify-center`}>
+          <div className={`border border-dashed border-border/50 ${roundClass} bg-muted/30 aspect-square ${previewSizeClasses} relative flex-shrink-0 shadow-sm flex items-center justify-center`}>
             <ImageIcon className="w-1/2 h-1/2 text-muted-foreground/50" />
           </div>
         )}

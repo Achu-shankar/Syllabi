@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useRef, useEffect } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
+
+// Guard against SSR - only import PDF.js on the client side
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+if (typeof window !== 'undefined') {
+  try {
+    pdfjsLib = require('pdfjs-dist');
+  } catch (error) {
+    console.error('Failed to load PDF.js in AnnotationLayer:', error);
+  }
+}
 
 // Types for annotation data
 export interface AnnotationRect {
@@ -35,7 +44,7 @@ export interface QuadPointAnnotation extends BaseAnnotation {
 export type Annotation = RectAnnotation | QuadPointAnnotation;
 
 interface AnnotationLayerProps {
-  pdfDocument: pdfjsLib.PDFDocumentProxy;
+  pdfDocument: any; // Using any since we're handling SSR dynamically
   pageNumber: number;
   zoomScale: number;
   annotations: Annotation[];
@@ -52,13 +61,22 @@ const AnnotationLayerInternal: React.FC<AnnotationLayerProps> = ({
   onAnnotationHover,
 }) => {
   const layerRef = useRef<HTMLDivElement>(null);
-  const pageProxyRef = useRef<pdfjsLib.PDFPageProxy | null>(null);
+  const pageProxyRef = useRef<any | null>(null);
 
   // Filter annotations for current page
   const pageAnnotations = annotations.filter(ann => ann.pageNumber === pageNumber);
 
+  // Early return for SSR
+  if (!pdfjsLib) {
+    return (
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Empty annotation layer for SSR */}
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (!pdfDocument || !layerRef.current) {
+    if (!pdfDocument || !layerRef.current || !pdfjsLib) {
       return;
     }
 
@@ -115,7 +133,7 @@ const AnnotationLayerInternal: React.FC<AnnotationLayerProps> = ({
 
   const createAnnotationElement = (
     annotation: Annotation,
-    viewport: pdfjsLib.PageViewport,
+    viewport: any,
     scale: number
   ): HTMLElement | null => {
     const element = document.createElement('div');
@@ -192,13 +210,14 @@ const AnnotationLayerInternal: React.FC<AnnotationLayerProps> = ({
   const positionRectAnnotation = (
     element: HTMLElement,
     rect: AnnotationRect,
-    viewport: pdfjsLib.PageViewport,
+    viewport: any,
     scale: number
   ) => {
     // Convert PDF coordinates to viewport coordinates
     const [x1, y1] = viewport.convertToViewportPoint(rect.x, rect.y);
     const [x2, y2] = viewport.convertToViewportPoint(rect.x + rect.width, rect.y + rect.height);
 
+    // Set position and size
     element.style.left = `${Math.min(x1, x2)}px`;
     element.style.top = `${Math.min(y1, y2)}px`;
     element.style.width = `${Math.abs(x2 - x1)}px`;
@@ -208,7 +227,7 @@ const AnnotationLayerInternal: React.FC<AnnotationLayerProps> = ({
   const positionQuadPointAnnotation = (
     element: HTMLElement,
     quadPoints: number[],
-    viewport: pdfjsLib.PageViewport,
+    viewport: any,
     scale: number
   ) => {
     if (quadPoints.length !== 8) {
@@ -261,23 +280,22 @@ const AnnotationLayerInternal: React.FC<AnnotationLayerProps> = ({
   const getDefaultOpacity = (type: Annotation['type']): number => {
     switch (type) {
       case 'highlight':
-        return 0.6;
+        return 0.3;
       case 'underline':
       case 'strikethrough':
         return 0.8;
       case 'note':
         return 0.9;
       default:
-        return 0.6;
+        return 0.5;
     }
   };
 
   return (
     <div
       ref={layerRef}
-      className="annotation-layer absolute top-0 left-0"
+      className="absolute inset-0 pointer-events-none annotation-layer"
       style={{
-        pointerEvents: 'none', // Container doesn't block interactions
         zIndex: 2,
       }}
     />

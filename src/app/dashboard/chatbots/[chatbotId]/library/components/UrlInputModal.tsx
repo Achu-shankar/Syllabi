@@ -21,21 +21,19 @@ interface UrlInputModalProps {
 export default function UrlInputModal({ isOpen, onClose, chatbotId, userId, startUrlIngestion }: UrlInputModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Add URL</DialogTitle>
+      <DialogContent className="sm:max-w-lg p-8">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-medium">Add URL</DialogTitle>
           <DialogDescription>
             Enter a URL to add content from a web page to your chatbot's knowledge base.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden">
-          <UrlInputArea 
-            chatbotId={chatbotId} 
-            userId={userId} 
-            onUrlAdded={onClose}
-            startUrlIngestion={startUrlIngestion}
-          />
-        </div>
+        <UrlInputArea 
+          chatbotId={chatbotId} 
+          userId={userId} 
+          onUrlAdded={onClose}
+          startUrlIngestion={startUrlIngestion}
+        />
       </DialogContent>
     </Dialog>
   );

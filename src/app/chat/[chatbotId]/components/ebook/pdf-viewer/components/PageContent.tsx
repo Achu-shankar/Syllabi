@@ -1,12 +1,22 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
+
+// Guard against SSR - only import PDF.js on the client side
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+if (typeof window !== 'undefined') {
+  try {
+    pdfjsLib = require('pdfjs-dist');
+  } catch (error) {
+    console.error('Failed to load PDF.js in PageContent:', error);
+  }
+}
+
 import { SearchOptions } from '../store/pdfViewerStore'; // Import SearchOptions
 import AnnotationLayer, { Annotation } from './AnnotationLayer';
 
 interface PageContentProps {
-  pdfDocument: pdfjsLib.PDFDocumentProxy;
+  pdfDocument: any; // Using any since we're handling SSR dynamically
   pageNumber: number;
   zoomScale: number;
   onRenderSuccess?: (pageNumber: number, zoomScale: number) => void;
@@ -36,15 +46,24 @@ const PageContentInternal: React.FC<PageContentProps> = ({
   const textLayerRef = useRef<HTMLDivElement>(null); // Ref for the text layer div
   const pageContentRef = useRef<HTMLDivElement>(null); // Ref for the main content wrapper
 
+  // Early return for SSR
+  if (!pdfjsLib) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-sm text-gray-500">Loading page content...</p>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (!pdfDocument || !canvasRef.current || !textLayerRef.current || !pageContentRef.current) {
+    if (!pdfDocument || !canvasRef.current || !textLayerRef.current || !pageContentRef.current || !pdfjsLib) {
       return;
     }
 
-    let renderTask: pdfjsLib.RenderTask | null = null;
+    let renderTask: any = null;
     let textLayerRenderTask: any = null; // TextLayer instance
     let isCancelled = false;
-    let pageProxy: pdfjsLib.PDFPageProxy | null = null; // To store the page proxy for cleanup
+    let pageProxy: any = null;
 
     const applyHighlights = (container: HTMLElement, textToSearch: string, options: SearchOptions, currentActiveMatchId?: string) => {
       if (!textToSearch.trim() || !options) return;

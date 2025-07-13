@@ -5,13 +5,18 @@ import Script from 'next/script';
 import { GA_TRACKING_ID } from '@/utils/analytics';
 import { Providers } from "./providers";
 import { Inter as FontSans } from 'next/font/google'
+import { Inter } from "next/font/google"; // 1. Import Inter
 
-const fontSans = FontSans({
-  subsets: ['latin'],
-  variable: '--font-sans'
-})
+// const fontSans = FontSans({
+//   subsets: ['latin'],
+//   variable: '--font-sans'
+// })
 // import AnalyticsProvider from './analytics-provider';
 
+const fontInter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter", // This is the key part
+});
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -34,13 +39,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={fontSans.variable} suppressHydrationWarning>
+    <html lang="en" className={fontInter.variable} suppressHydrationWarning>
       <head>
         {/* Global Site Tag (gtag.js) - Google Analytics */}
-        <Script
-          strategy="afterInteractive"
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
-        />
+        
         <Script
           id="gtag-init"
           strategy="afterInteractive"
@@ -64,11 +66,10 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {/* <AnalyticsProvider> */}
+            
               <main className="flex-1 w-full h-[calc(100vh-4rem)] overflow-hidden">
                 {children}
               </main>
-            {/* </AnalyticsProvider> */}
           </ThemeProvider>
         </Providers>
       </body>

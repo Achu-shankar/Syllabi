@@ -1,0 +1,32 @@
+{
+  "name": "get_simple_weather",
+  "display_name": "Get Simple Weather",
+  "description": "Get current weather information using a simple free API",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "get_simple_weather",
+    "description": "Get current weather information for any location",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "Location name (e.g., 'London', 'New York', 'Tokyo')"
+        }
+      },
+      "required": ["location"]
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "https://wttr.in/",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json",
+        "User-Agent": "curl"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

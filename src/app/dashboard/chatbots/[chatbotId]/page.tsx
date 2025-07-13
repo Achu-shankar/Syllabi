@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Monitor, Smartphone, ExternalLink, RotateCcw, Lock, Globe, Users, ChevronDown } from 'lucide-react';
+import { AlertCircle, Monitor, Smartphone, ExternalLink, RotateCcw, Lock, Globe, Users, ChevronDown, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChatbotVisibility } from '@/app/dashboard/libs/queries';
+import { RainbowButton } from '@/components/magicui/rainbow-button';
+import { GlowEffect } from '@/components/ui/glow-effect';
 
 type ViewMode = 'web' | 'mobile';
 
@@ -20,6 +22,7 @@ export default function ChatbotOverviewPage() {
   const chatbotId = params.chatbotId as string;
   const [viewMode, setViewMode] = useState<ViewMode>('web');
   const [visibilityPopoverOpen, setVisibilityPopoverOpen] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
   const { data: chatbot, isLoading, error } = useFetchChatbotDetails(chatbotId);
@@ -27,6 +30,7 @@ export default function ChatbotOverviewPage() {
 
   const handleReload = () => {
     if (iframeRef.current) {
+      setIframeLoaded(false);
       // Force reload by changing the src
       const currentSrc = iframeRef.current.src;
       iframeRef.current.src = '';
@@ -37,6 +41,16 @@ export default function ChatbotOverviewPage() {
       }, 10);
       toast.success('Chatbot reloaded');
     }
+  };
+
+  const handleCopyLink = () => {
+    if (!chatbot?.shareable_url_slug) return;
+    const url = `${window.location.origin}/chat/${chatbot.shareable_url_slug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Link copied to clipboard!');
+    }).catch(err => {
+      toast.error('Failed to copy link.');
+    });
   };
 
   const handleVisibilityChange = (newVisibility: ChatbotVisibility) => {
@@ -63,8 +77,7 @@ export default function ChatbotOverviewPage() {
         maxWidth: '90vw',
         maxHeight: '80vh',
         borderRadius: '24px',
-        border: '8px solid #1f2937', // Dark bezel
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 0 0 8px hsl(var(--border)), 0 25px 50px -12px rgba(0, 0, 0, 0.25)',
       };
     } else {
       return {
@@ -73,8 +86,7 @@ export default function ChatbotOverviewPage() {
         maxWidth: '90vw',
         maxHeight: '80vh',
         borderRadius: '12px',
-        border: '6px solid #374151', // Dark bezel
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 0 0 6px hsl(var(--border)), 0 25px 50px -12px rgba(0, 0, 0, 0.25)',
       };
     }
   };
@@ -88,25 +100,25 @@ export default function ChatbotOverviewPage() {
         return {
           icon: Lock,
           label: 'Private',
-          color: 'text-gray-600',
-          bgColor: 'bg-gray-100',
-          borderColor: 'border-gray-200'
+          color: 'text-muted-foreground',
+          bgColor: 'bg-secondary',
+          borderColor: 'border-border'
         };
       case 'public':
         return {
           icon: Globe,
           label: 'Public',
           color: 'text-green-700',
-          bgColor: 'bg-green-100',
-          borderColor: 'border-green-200'
+          bgColor: 'bg-secondary',
+          borderColor: 'border-border'
         };
       case 'shared':
         return {
           icon: Users,
           label: 'Shared',
           color: 'text-blue-700',
-          bgColor: 'bg-blue-100',
-          borderColor: 'border-blue-200'
+          bgColor: 'bg-secondary',
+          borderColor: 'border-border'
         };
       default:
         return null;
@@ -118,11 +130,11 @@ export default function ChatbotOverviewPage() {
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Chatbot Preview</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-foreground">Chatbot Preview</h1>
+            <p className="text-base text-muted-foreground mt-1">
               Test and interact with your chatbot in real-time
             </p>
           </div>
@@ -131,27 +143,50 @@ export default function ChatbotOverviewPage() {
             {/* Reload Button */}
             {!isLoading && chatbot && chatbot.shareable_url_slug && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={handleReload}
                 className="h-8 px-3"
                 title="Reload chatbot"
+                aria-label="Reload chatbot"
               >
                 <RotateCcw className="h-4 w-4" />
               </Button>
             )}
 
-            {/* Open Chatbot Button - Always show if shareable_url_slug exists */}
+            {/* Copy Link Button */}
             {!isLoading && chatbot && chatbot.shareable_url_slug && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                onClick={() => window.open(`/chat/${chatbot.shareable_url_slug}`, '_blank')}
+                onClick={handleCopyLink}
                 className="h-8 px-3"
+                aria-label="Copy chatbot link"
+                title="Copy chatbot link"
               >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Chatbot
+                <Copy className="h-4 w-4" />
               </Button>
+            )}
+
+            {/* Open Chatbot Button - Always show if shareable_url_slug exists */}
+            {!isLoading && chatbot && chatbot.shareable_url_slug && (
+               <div className="relative group">
+                <GlowEffect
+                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  colors={['#9c40ff', '#ffaa40', '#3357FF']}
+                  mode='rotate'
+                  blur='strong'
+                  duration={5}
+                  scale={1.2}
+                />
+                <RainbowButton
+                  size="sm"
+                  onClick={() => window.open(`/chat/${chatbot.shareable_url_slug}`, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open Chatbot
+                </RainbowButton>
+              </div>
             )}
 
             {/* View Mode Toggle */}
@@ -203,7 +238,7 @@ export default function ChatbotOverviewPage() {
                       <div className="flex items-center space-x-3">
                         <RadioGroupItem value="private" id="private-option" />
                         <Label htmlFor="private-option" className="flex items-center gap-2 text-sm cursor-pointer">
-                          <Lock className="h-4 w-4 text-gray-600" />
+                          <Lock className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <div className="font-medium">Private</div>
                             <div className="text-xs text-muted-foreground">Only you can access</div>
@@ -252,9 +287,9 @@ export default function ChatbotOverviewPage() {
         />
         
         {/* Content Area */}
-        <div className="relative h-full flex items-center justify-center p-16">
+        <div className="relative h-full flex items-center justify-center p-12">
           {isLoading ? (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-md w-full">
+            <div className="bg-card rounded-lg shadow-md border border-border p-8 max-w-md w-full">
               <div className="space-y-4">
                 <Skeleton className="h-8 w-3/4 mx-auto" />
                 <Skeleton className="h-4 w-full" />
@@ -263,35 +298,36 @@ export default function ChatbotOverviewPage() {
               </div>
             </div>
           ) : error || !chatbot ? (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-md w-full text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="bg-card rounded-lg shadow-md border border-border p-8 max-w-md w-full text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
                 {error ? 'Failed to load chatbot' : 'Chatbot not found'}
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {error instanceof Error ? error.message : 'The chatbot may not exist or you may not have access to it.'}
               </p>
             </div>
           ) : !chatbot.shareable_url_slug ? (
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 max-w-md w-full text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <div className="bg-card rounded-lg shadow-md border border-border p-8 max-w-md w-full text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">
                 No shareable URL
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 This chatbot doesn't have a shareable URL configured yet.
               </p>
             </div>
           ) : (
             <div 
-              className="bg-white overflow-hidden transition-all duration-300 ease-in-out"
+              className="relative overflow-hidden bg-white transition-all duration-300 ease-in-out"
               style={getDeviceStyle()}
             >
               <iframe
                 ref={iframeRef}
                 src={`/chat/${chatbot.shareable_url_slug}?preview=true&isolated=true`}
-                className="w-full h-full border-0"
+                className={`w-full h-full border-0 transition-opacity duration-300 ${iframeLoaded ? 'opacity-100' : 'opacity-0'}`}
                 title="Chatbot Preview"
+                onLoad={() => setIframeLoaded(true)}
               />
             </div>
           )}
@@ -300,9 +336,9 @@ export default function ChatbotOverviewPage() {
         {/* Floating Status Indicator */}
         {chatbot && visibilityDisplay && (
           <div className="absolute top-4 left-4">
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${visibilityDisplay.bgColor} ${visibilityDisplay.color} ${visibilityDisplay.borderColor} border`}>
-              <div className={`w-2 h-2 rounded-full ${chatbot.visibility === 'private' ? 'bg-gray-400' : 'bg-green-500 animate-pulse'}`} />
-              <visibilityDisplay.icon className="h-3 w-3" />
+            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-normal ${visibilityDisplay.bgColor} ${visibilityDisplay.color} ${visibilityDisplay.borderColor} border`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${chatbot.visibility === 'private' ? 'bg-muted-foreground' : 'bg-green-500 animate-pulse'}`} />
+              <visibilityDisplay.icon className="h-2.5 w-2.5" />
               {chatbot.visibility === 'private' ? 'Private - Owner Only' : 'Live Preview'}
             </div>
           </div>
@@ -311,7 +347,7 @@ export default function ChatbotOverviewPage() {
         {/* Device Label */}
         {chatbot && chatbot.shareable_url_slug && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-            <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-3 py-1 text-xs font-medium text-gray-600">
+            <div className="bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-1 text-sm font-normal text-muted-foreground">
               {viewMode === 'mobile' ? '📱 Mobile View' : '💻 Desktop View'}
             </div>
           </div>

@@ -1,9 +1,20 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
-// If using a specific worker, import it like this, otherwise pdf.mjs should handle it.
-// import * as PdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+
+// Guard against SSR - only import PDF.js on the client side
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+if (typeof window !== 'undefined') {
+  try {
+    pdfjsLib = require('pdfjs-dist');
+    // Configure the worker source only on client side
+    if (pdfjsLib?.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+    }
+  } catch (error) {
+    console.error('Failed to load PDF.js:', error);
+  }
+}
 
 import { Annotation, ProgrammaticHighlight, ActiveTool, SearchOptions as ViewerSearchOptions, BoundingBox, PdfPoint } from '../types/'; // Assuming all types are in one place
 import PageContent from './PageContent'; // <-- Import PageContent
@@ -11,51 +22,58 @@ import { Loader2 } from 'lucide-react';
 import { usePdfViewerStore, SearchMatch, SearchOptions } from '../store/pdfViewerStore'; // <-- Import from store
 import { Annotation as AnnotationLayerAnnotation } from './AnnotationLayer';
 
-// Configure the worker source
-if (typeof window !== 'undefined') {
-    // In Next.js, the worker file should be in the /public directory
-    // and the path should be relative to the public directory e.g. /pdf.worker.min.js
-    // Make sure to copy `node_modules/pdfjs-dist/build/pdf.worker.min.js` to your `public` folder.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-}
-
-
 export interface CorePdfViewerPdfJsProps {
-  fileUrl: string | null;
-  
-  zoomScale?: number; // This is now primarily controlled by the store
-  searchText?: string; // Removed, will come from store
-  searchOptions?: SearchOptions; // Removed, will come from store
-  initialAnnotations?: Annotation[];
-  programmaticHighlights?: ProgrammaticHighlight[];
-  activeTool?: ActiveTool;
-  annotationUserColor?: string;
-  overscanCount?: number; // <-- Add overscanCount prop
-  annotations?: AnnotationLayerAnnotation[]; // Add annotations prop
-
-  onDocumentLoadSuccess?: (document: { numPages: number, pdfDocument: pdfjsLib.PDFDocumentProxy }) => void;
+  fileUrl: string;
+  // zoomScale?: number; // Managed by store
+  overscanCount?: number;
+  // searchText?: string; // Managed by store
+  // searchOptions?: SearchOptions; // Managed by store
+  // initialAnnotations?: Annotation[];
+  // programmaticHighlights?: ProgrammaticHighlight[];
+  // activeTool?: ActiveTool;
+  // annotationUserColor?: string;
+  annotations?: AnnotationLayerAnnotation[];
+  onDocumentLoadSuccess?: (document: { numPages: number, pdfDocument: any }) => void;
   onDocumentLoadError?: (error: Error) => void;
-  onVisiblePageChange?: (pageNumber: number) => void; // Page number is 1-indexed
-  onZoomChange?: (scale: number) => void; // Placeholder, zoom controlled externally for now
-  
-  // Annotation callbacks (placeholders for now)
-  onAnnotationCreate?: (annotationData: Omit<Annotation, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
+  onVisiblePageChange?: (page: number) => void;
+  // onZoomChange?: (zoom: number) => void;
+  // onAnnotationCreate?: (annotation: Annotation) => void;
   onAnnotationClick?: (annotation: AnnotationLayerAnnotation) => void;
   onAnnotationHover?: (annotation: AnnotationLayerAnnotation | null) => void;
-  onTextSelect?: (text: string, selectionRects: { pageIndex: number, rects: BoundingBox[] }[]) => void;
+  // onTextSelect?: (text: string, boundingBox: BoundingBox) => void;
 }
 
 export interface CorePdfViewerPdfJsRef {
   scrollToPage: (pageNumber: number) => void;
   scrollToHighlight: (highlightId: string) => void;
-  // setZoom: (scale: number | 'auto' | 'page-actual' | 'page-width' | 'page-fit') => void; // TODO
-  // zoomIn: (factor?: number) => void; // TODO
-  // zoomOut: (factor?: number) => void; // TODO
-  // executeSearch: (query: string, options: SearchOptions) => void; // TODO
+  // TODO: Add more methods as needed
+  // searchText: (query: string, options?: SearchOptions) => void;
+  // zoomIn: () => void;
+  // zoomOut: () => void;
+  // setZoom: (scale: number) => void;
+  // addAnnotation: (annotation: Annotation) => void;
+  // removeAnnotation: (annotationId: string) => void;
 }
 
 const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfViewerPdfJsProps>(
   (props, ref) => {
+    // Early return for SSR
+    if (!pdfjsLib) {
+      useImperativeHandle(ref, () => ({
+        scrollToPage: () => {},
+        scrollToHighlight: () => {},
+      }), []);
+
+      return (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="mt-2">Loading PDF Viewer...</p>
+          </div>
+        </div>
+      );
+    }
+
     const {
       fileUrl,
       // zoomScale = 1.0, // Comes from store, direct prop can be a default or removed
@@ -78,7 +96,7 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
       // overscanCount = 3, // Default overscan // -- Remove duplicate from here
     } = props;
 
-    const [pdfDocument, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+    const [pdfDocument, setPdfDocument] = useState<any | null>(null);
     const [numPages, setNumPages] = useState<number>(0);
     const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number; }[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -113,229 +131,139 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
       console.error(`Error rendering page ${pageNumber} at zoom ${zoom}`, error);
     }, []);
 
-    // Effect to reset state if fileUrl changes (including pagePlaceholderRefs)
+    // Load PDF Document
     useEffect(() => {
-      // console.log('[FileUrl Effect] fileUrl changed:', fileUrl);
-      if (!fileUrl) {
-        setPdfDocument(null);
-        setNumPages(0);
-        setPageDimensions([]);
-        pagePlaceholderRefs.current = []; // Reset placeholder refs
-        setCurrentVisiblePage(1); 
-        activeRenderSet.current.clear();
-        setActiveRenderSetTrigger(prev => prev + 1);
-        setIsLoading(false); 
-        setError(null);
+      if (!fileUrl || !pdfjsLib) {
         return;
       }
-      // For a new fileUrl, reset key states before loading new document
-      // This ensures the IntersectionObserver re-evaluates correctly with new page count
-      // and refs from the new document, not stale ones.
-      setNumPages(0); 
-      setPageDimensions([]);
-      pagePlaceholderRefs.current = [];
-      setCurrentVisiblePage(1);
-      activeRenderSet.current.clear();
-      setActiveRenderSetTrigger(prev => prev + 1);
-      // setIsLoading and setError will be handled by loadDocument
-    }, [fileUrl]);
 
-    // --- Document Loading Effect ---
-    useEffect(() => {
-      if (!fileUrl) {
-        // State is reset by the fileUrl effect if fileUrl becomes null
-        return;
-      }
-      // If fileUrl is present, proceed to load. Component state (numPages etc.) 
-      // should have been reset by the fileUrl effect if it was a *change* of file.
-      // ... (rest of loadDocument logic, ensure it doesn't prematurely set numPages to 0 here if already reset)
+      let isCancelled = false;
+
       const loadDocument = async () => {
         setIsLoading(true);
         setError(null);
-        setLoadingProgress('Downloading PDF...');
+        setLoadingProgress('Loading PDF...');
+
         try {
-          const loadingTask = pdfjsLib.getDocument(fileUrl);
+          const loadingTask = pdfjsLib!.getDocument(fileUrl);
           
-          // Add progress listener
-          loadingTask.onProgress = (progress: { loaded: number; total: number }) => {
-            if (progress.total > 0) {
-              const percent = Math.round((progress.loaded / progress.total) * 100);
-              setLoadingProgress(`Downloading PDF... ${percent}%`);
+          loadingTask.onProgress = (progressData: any) => {
+            if (progressData.total > 0) {
+              const percent = Math.round((progressData.loaded / progressData.total) * 100);
+              setLoadingProgress(`Loading PDF... ${percent}%`);
             }
           };
           
-          const doc = await loadingTask.promise;
-          setLoadingProgress('Processing document...');
-          
-          setPdfDocument(doc);
-          setNumPages(doc.numPages);
+          const pdf = await loadingTask.promise;
 
-          setLoadingProgress(`Loading page dimensions... (${doc.numPages} pages)`);
-          const dimensions = [];
-          for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.0 }); // Natural scale
-            dimensions.push({ width: viewport.width, height: viewport.height });
-            
-            // Update progress for page dimension loading
-            if (i % 5 === 0 || i === doc.numPages) {
-              setLoadingProgress(`Loading page dimensions... (${i}/${doc.numPages})`);
+          if (isCancelled) {
+            pdf.destroy();
+            return;
+          }
+
+          setPdfDocument(pdf);
+          setNumPages(pdf.numPages);
+          onDocumentLoadSuccess?.({
+            numPages: pdf.numPages,
+            pdfDocument: pdf
+          });
+
+          // Preload page dimensions for layout calculation
+          const dimensions: { width: number; height: number; }[] = [];
+          for (let pageNum = 1; pageNum <= Math.min(5, pdf.numPages); pageNum++) {
+            try {
+              const page = await pdf.getPage(pageNum);
+              const viewport = page.getViewport({ scale: 1.0 });
+              dimensions[pageNum - 1] = {
+                width: viewport.width,
+                height: viewport.height,
+              };
+              page.cleanup();
+            } catch (pageError) {
+              console.warn(`Failed to get dimensions for page ${pageNum}:`, pageError);
+              dimensions[pageNum - 1] = { width: 612, height: 792 }; // Default letter size
             }
           }
+
+          // For remaining pages, use the first page's dimensions as estimate
+          if (pdf.numPages > 5 && dimensions.length > 0) {
+            const firstPageDimensions = dimensions[0];
+            for (let i = 5; i < pdf.numPages; i++) {
+              dimensions[i] = firstPageDimensions;
+            }
+          }
+
           setPageDimensions(dimensions);
+          setIsLoading(false);
           setLoadingProgress('');
           
-          if (onDocumentLoadSuccess) {
-            onDocumentLoadSuccess({ numPages: doc.numPages, pdfDocument: doc });
-          }
-        } catch (e: any) {
-          console.error("Failed to load PDF document:", e);
-          setError(e);
+        } catch (loadError: any) {
+          if (!isCancelled) {
+            console.error('Error loading PDF:', loadError);
+            setError(loadError);
+            setIsLoading(false);
           setLoadingProgress('');
-          if (onDocumentLoadError) {
-            onDocumentLoadError(e);
+            onDocumentLoadError?.(loadError);
           }
-        } finally {
-          setIsLoading(false);
         }
       };
 
       loadDocument();
 
-      // Cleanup: Destroy document object if component unmounts or fileUrl changes
       return () => {
-        // pdfDocument?.destroy(); // Consider implications carefully
-      };
-    }, [fileUrl, onDocumentLoadSuccess, onDocumentLoadError]);
-
-    // --- Search Logic Effect ---
-    useEffect(() => {
-      if (!searchText || !pdfDocument || numPages === 0) {
-        if (searchText === '') _setSearchResults([]); // Clear results if search text is empty
-        return;
-      }
-
-      const performSearch = async () => {
-        _setSearchStatus('PENDING');
-        const allMatches: SearchMatch[] = [];
-        let overallMatchCount = 0;
-
-        try {
-          for (let i = 0; i < numPages; i++) {
-            const pageNumber = i + 1;
-            const page = await pdfDocument.getPage(pageNumber);
-            const textContent = await page.getTextContent();
-            let matchesOnPage = 0;
-
-            // Simple text search logic (can be enhanced with regex for whole word, etc.)
-            // Consider diacritics normalization if searchOptions.matchDiacritics is true
-            const pageText = textContent.items.map(item => (item as any).str).join('');
-            const query = searchOptions.caseSensitive ? searchText : searchText.toLowerCase();
-            const sourceText = searchOptions.caseSensitive ? pageText : pageText.toLowerCase();
-            
-            // More robust search using textContent.items to get individual item positions later if needed
-            // For now, a simpler approach to find occurrences:
-            textContent.items.forEach(itemObj => {
-              const item = itemObj as any;
-              let itemText = item.str;
-              let sourceItemText = searchOptions.caseSensitive ? itemText : itemText.toLowerCase();
-              const queryToUse = searchOptions.caseSensitive ? searchText : searchText.toLowerCase();
-
-              if (searchOptions.wholeWord) {
-                // Basic whole word search using regex for this item's text
-                const regex = new RegExp(`\\b${queryToUse.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'g' + (searchOptions.caseSensitive ? '' : 'i'));
-                let match;
-                while ((match = regex.exec(itemText)) !== null) {
-                  allMatches.push({
-                    pageIndex: i,
-                    matchIndexOnPage: matchesOnPage++,
-                    id: `page-${i}-match-${matchesOnPage -1}`,
-                  });
-                  overallMatchCount++;
-                }
-              } else {
-                // Simple substring search within this item
-                let startIndex = 0;
-                while ((startIndex = sourceItemText.indexOf(queryToUse, startIndex)) !== -1) {
-                  allMatches.push({
-                    pageIndex: i,
-                    matchIndexOnPage: matchesOnPage++,
-                    id: `page-${i}-match-${matchesOnPage - 1}`,
-                  });
-                  overallMatchCount++;
-                  startIndex += queryToUse.length; // Move past the current match
-                }
-              }
-            });
-          }
-          _setSearchResults(allMatches);
-        } catch (e) {
-          console.error("Error during PDF search:", e);
-          _setSearchStatus('ERROR');
+        isCancelled = true;
+        if (pdfDocument) {
+          pdfDocument.destroy();
         }
       };
+    }, [fileUrl, onDocumentLoadSuccess, onDocumentLoadError, pdfDocument]);
 
-      performSearch();
-    }, [searchText, searchOptions, pdfDocument, numPages, _setSearchResults, _setSearchStatus]);
-
-    // --- Intersection Observer for Visible Page Tracking ---
-    const currentVisiblePageRef = useRef(currentVisiblePage);
+    // Reset page refs when document changes
     useEffect(() => {
-      currentVisiblePageRef.current = currentVisiblePage;
-    }, [currentVisiblePage]);
+      pagePlaceholderRefs.current = Array(numPages).fill(null);
+    }, [numPages]);
 
+    // --- Intersection Observer for Page Visibility Detection ---
     useEffect(() => {
-      const effectTimestamp = Date.now();
-
-      const scrollContainer = viewerContainerRef.current;
-      
-      if (!scrollContainer) {
-        return;
-      }
-      if (numPages === 0) {
-        return;
-      }
-      if (pagePlaceholderRefs.current.length !== numPages) {
+      if (numPages === 0 || pageDimensions.length === 0) {
         return;
       }
 
-      const observerOptions = {
-        root: scrollContainer,
-        rootMargin: '0px',
-        threshold: 0.5,
-      };
+      const currentPlaceholderDOMRefs = pagePlaceholderRefs.current.filter(Boolean);
+      if (currentPlaceholderDOMRefs.length === 0) {
+        return;
+      }
 
-      const observerCallback: IntersectionObserverCallback = (entries) => {
-        let newMostVisiblePage = -1;
-        let maxRatio = -1;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          let newVisiblePage = currentVisiblePage;
+          let maxIntersectionRatio = 0;
 
-        entries.forEach(entry => {
+          entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const pageNumStr = (entry.target as HTMLElement).dataset.pageNumber;
-            if (pageNumStr) {
-              const pageNum = parseInt(pageNumStr, 10);
-              if (entry.intersectionRatio > maxRatio) {
-                maxRatio = entry.intersectionRatio;
-                newMostVisiblePage = pageNum;
-              }
+              const pageNumber = parseInt(entry.target.getAttribute('data-page-number') || '1', 10);
+              if (entry.intersectionRatio > maxIntersectionRatio) {
+                maxIntersectionRatio = entry.intersectionRatio;
+                newVisiblePage = pageNumber;
             }
           }
         });
 
-        if (newMostVisiblePage !== -1 && newMostVisiblePage !== currentVisiblePageRef.current) {
-            setCurrentVisiblePage(newMostVisiblePage);
-            if (onVisiblePageChangeProp) {
-              onVisiblePageChangeProp(newMostVisiblePage);
+          if (newVisiblePage !== currentVisiblePage) {
+            setCurrentVisiblePage(newVisiblePage);
+            onVisiblePageChangeProp?.(newVisiblePage);
             }
+        },
+        {
+          root: viewerContainerRef.current,
+          threshold: [0.1, 0.25, 0.5, 0.75, 1.0], // Multiple thresholds for better detection
+          rootMargin: '-10px 0px -10px 0px', // Slight negative margin to avoid edge cases
         }
-      };
+      );
 
-      const observer = new IntersectionObserver(observerCallback, observerOptions);
-
-      const currentPlaceholderDOMRefs = pagePlaceholderRefs.current;
-      currentPlaceholderDOMRefs.forEach((p, index) => {
-        if (p) {
-          observer.observe(p);
+      currentPlaceholderDOMRefs.forEach(placeholder => {
+        if (placeholder) {
+          observer.observe(placeholder);
         }
       });
 
@@ -394,135 +322,81 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
       // TODO: Implement other ref methods (zoom, search)
     }), [numPages]); 
 
-    // Effect to scroll to the active search result when it changes
-    useEffect(() => {
-      if (currentSearchResultIndex !== -1 && searchResults.length > 0) {
-        const activeMatch = searchResults[currentSearchResultIndex];
-        if (activeMatch) {
-          // Scroll to the page of the active match if it's not already visible
-          // (or rely on IntersectionObserver to eventually make it visible and renderable)
-          // For immediate jump, we can call scrollToPage
-          const targetPageForScroll = activeMatch.pageIndex + 1;
-          if (targetPageForScroll !== currentVisiblePage) {
-            // Check if page is in activeRenderSet before trying to scroll to highlight
-            // This ensures the page (and thus the highlight element) might exist
-            if (activeRenderSet.current.has(targetPageForScroll)) {
-                 // If page is already rendered or in overscan, try to scroll to highlight directly
-                 // This might still race if PageContent hasn't finished its own render cycle
-                document.getElementById(activeMatch.id)?.scrollIntoView({
-                    behavior: 'auto', // 'smooth' can be too slow if page also needs to scroll
-                    block: 'center',
-                    inline: 'nearest'
-                });
-            } else {
-                // If page is not rendered, scroll to the page first.
-                // The highlight scroll might need to happen in a subsequent effect or after PageContent renders it.
-                pagePlaceholderRefs.current[activeMatch.pageIndex]?.scrollIntoView({
-                    behavior: 'auto',
-                    block: 'start'
-                });
-            }
-          } else {
-             // Page is already visible, attempt to scroll to highlight
-            document.getElementById(activeMatch.id)?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-                inline: 'nearest'
-            });
-          }
-          // Consider calling setCurrentPage from store here if direct navigation is desired
-          // onVisiblePageChangeProp(activeMatch.pageIndex + 1); // This might fight with IO
-        }
+    // --- Search functionality ---
+    const currentMatch = useMemo(() => {
+      if (searchResults.length === 0 || currentSearchResultIndex === -1) {
+        return null;
       }
-    }, [currentSearchResultIndex, searchResults, currentVisiblePage]); // activeRenderSet not added to avoid too many runs
+      return searchResults[currentSearchResultIndex] || null;
+    }, [searchResults, currentSearchResultIndex]);
 
-    // --- Render Logic ---
+    const activeMatchId = currentMatch ? `search-match-${currentMatch.pageIndex + 1}-${currentMatch.matchIndexOnPage}` : undefined;
+
+    // --- Loading and Error States ---
     if (isLoading) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
-            <p className="text-sm text-muted-foreground">
-              {loadingProgress || 'Parsing PDF document...'}
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">This may take a moment for large files</p>
-          </div>
+        <div className="w-full h-full flex flex-col items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2">{loadingProgress}</p>
         </div>
       );
     }
 
     if (error) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <div className="text-center p-4">
-            <div className="text-red-500 mb-2">
-              <svg className="h-8 w-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-red-600 mb-1">Failed to load PDF</p>
-            <p className="text-xs text-muted-foreground">{error.message}</p>
-          </div>
+        <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+          <p className="text-red-500 mb-2">Failed to load PDF</p>
+          <p className="text-sm text-gray-600">{error.message}</p>
         </div>
       );
     }
 
-    if (!pdfDocument || numPages === 0 || pageDimensions.length === 0) {
+    if (!pdfDocument || numPages === 0) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <div className="text-center">
-            <div className="text-muted-foreground mb-2">
-              <svg className="h-8 w-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <p className="text-sm text-muted-foreground">No PDF content available</p>
-          </div>
+        <div className="w-full h-full flex items-center justify-center">
+          <p>No document loaded</p>
         </div>
       );
     }
 
+    // --- Main PDF Viewer Render ---
     return (
       <div 
         ref={viewerContainerRef} 
-        className="absolute inset-0 overflow-auto"
+        className="w-full h-full overflow-auto relative pdf-viewer-container"
+        style={{
+          backgroundColor: '#f5f5f5',
+          padding: '20px',
+        }}
       >
+        {/* Main content container */}
+        <div className="flex flex-col items-center space-y-4">
         {Array.from({ length: numPages }, (_, i) => {
           const pageNumber = i + 1;
-          const dimensions = pageDimensions[i];
-          if (!dimensions) return null;
-
-          const pageWidth = dimensions.width * storeZoomScale;
-          const pageHeight = dimensions.height * storeZoomScale;
-          
-          const isPageActive = pdfDocument && activeRenderSet.current.has(pageNumber);
-          const activeMatchId = (currentSearchResultIndex !== -1 && searchResults[currentSearchResultIndex]?.pageIndex === i) 
-                                ? searchResults[currentSearchResultIndex].id 
-                                : undefined;
+            const isPageActive = activeRenderSet.current.has(pageNumber);
+            const pageDimension = pageDimensions[i] || { width: 612, height: 792 };
+            const actualWidth = pageDimension.width * storeZoomScale;
+            const actualHeight = pageDimension.height * storeZoomScale;
 
           return (
             <div
-              key={`page-placeholder-${pageNumber}`}
-              ref={el => { pagePlaceholderRefs.current[i] = el; }}
+                key={pageNumber}
+                ref={(el) => {
+                  pagePlaceholderRefs.current[i] = el;
+                }}
               data-page-number={pageNumber}
-              className={`mx-auto my-2.5 border border-border relative overflow-hidden ${
-                isPageActive ? 'bg-white' : 'bg-gray-100' 
-              }`}
+                className="relative border shadow-md bg-white page-placeholder"
               style={{
-                width: `${pageWidth}px`,
-                height: `${pageHeight}px`,
-              }}
-            >
-              {/* Show placeholder text only if page content is not active */}
-              {!isPageActive && (
-                <div className="text-center pt-5">
-                  <div className="flex justify-center items-center h-full">
-                    <span className="text-gray-400 text-sm">Page {pageNumber}</span>
-                  </div>
+                  width: `${Math.floor(actualWidth)}px`,
+                  height: `${Math.floor(actualHeight)}px`,
+                  minHeight: `${Math.floor(actualHeight)}px`, // Ensure consistent height even when content loads
+                }}
+              >
+                {/* Page number indicator */}
+                <div className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded z-10">
+                  Page {pageNumber}
                 </div>
-              )}
               
-              {/* Conditionally render PageContent */}
               {isPageActive && (
                 <PageContent
                   pdfDocument={pdfDocument} 
@@ -541,6 +415,7 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
             </div>
           );
         })}
+        </div>
       </div>
     );
   }

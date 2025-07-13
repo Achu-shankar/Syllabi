@@ -8,6 +8,7 @@ import {
   UpdateChatbotPayload 
 } from '@/app/dashboard/libs/queries';
 import { toast } from "sonner";
+import { getProductionBaseUrl } from '@/utils/url';
 
 // --- Update Chatbot Visibility ---
 async function updateChatbotVisibilityAPI(
@@ -165,5 +166,5 @@ export function useRemoveChatbotPermission(chatbotId: string) {
 export function generateShareableUrl(chatbotId: string, slug?: string): string {
   // For now, use the chatbot ID if no slug is available
   const urlPath = slug || chatbotId;
-  return `${window.location.origin}/chat/${urlPath}`;
+  return `${getProductionBaseUrl()}/chat/${urlPath}`;
 } 

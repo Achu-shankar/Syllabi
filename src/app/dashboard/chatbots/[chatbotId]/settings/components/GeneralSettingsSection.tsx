@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldsetBlock } from './FieldsetBlock';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpCircle, Bot, MessageSquare } from 'lucide-react';
 import { useUpdateChatbotSettings } from '../../hooks/useChatbotSettings';
 import { UpdateChatbotPayload, Chatbot } from '@/app/dashboard/libs/queries';
-import { Bot, MessageSquare } from 'lucide-react';
+import { useSettingsDirty } from './SettingsDirtyContext';
 
 // Zod schema for validation
 const generalSettingsSchema = z.object({
@@ -32,12 +34,14 @@ interface GeneralSettingsSectionProps {
 
 export function GeneralSettingsSection({ chatbot, chatbotId }: GeneralSettingsSectionProps) {
   const { mutate: updateSettings, isPending: isUpdating } = useUpdateChatbotSettings(chatbotId);
+  const { setDirty, registerSaveHandler, registerResetHandler } = useSettingsDirty();
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isDirty },
+    watch,
   } = useForm<GeneralSettingsFormData>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues: {
@@ -48,79 +52,113 @@ export function GeneralSettingsSection({ chatbot, chatbotId }: GeneralSettingsSe
     }
   });
 
+  const lastSavedFormRef = useRef<GeneralSettingsFormData | null>(null);
+
   useEffect(() => {
     if (chatbot) {
-      reset({
+      const initialForm: GeneralSettingsFormData = {
         name: chatbot.name ?? '',
         student_facing_name: chatbot.student_facing_name ?? null,
         description: chatbot.description ?? null,
         welcome_message: chatbot.welcome_message ?? null,
-      });
+      };
+      reset(initialForm);
+      lastSavedFormRef.current = initialForm;
     }
   }, [chatbot, reset]);
 
-  const onSubmit: SubmitHandler<GeneralSettingsFormData> = (formData) => {
+  // Watch for dirty state and update context
+  useEffect(() => {
+    setDirty('general', isDirty);
+  }, [isDirty, setDirty]);
+
+  const onSubmit = useCallback<SubmitHandler<GeneralSettingsFormData>>((formData) => {
     const payload: UpdateChatbotPayload = {
       name: formData.name,
       student_facing_name: formData.student_facing_name ?? undefined,
       description: formData.description ?? undefined,
       welcome_message: formData.welcome_message ?? undefined,
     };
-    updateSettings(payload);
-  };
+    updateSettings(payload, {
+      onSuccess: () => {
+        lastSavedFormRef.current = formData;
+      }
+    });
+  }, [updateSettings]);
+
+  // Register save handler
+  useEffect(() => {
+    registerSaveHandler('general', async () => {
+      await handleSubmit(onSubmit)();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerSaveHandler, handleSubmit, onSubmit]);
+
+  // Register reset handler
+  useEffect(() => {
+    registerResetHandler('general', async () => {
+      if (lastSavedFormRef.current) {
+        reset(lastSavedFormRef.current);
+      }
+    });
+  }, [registerResetHandler, reset]);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">General Settings</h2>
-          <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-lg font-semibold text-foreground">General Settings</h2>
+        <p className="text-sm text-muted-foreground mt-1">
             Manage basic information and initial messages for your chatbot
           </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Chatbot Identity Card */}
-          <Card className="shadow-none border-0 bg-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <Bot className="h-4 w-4 text-blue-600" />
-                </div>
-                Chatbot Identity
-              </CardTitle>
-              <CardDescription>
-                Define the core names and description for your chatbot
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <FieldsetBlock title="Chatbot Identity" required icon={<Bot className="h-4 w-4" />} index={0}>
               <div>
-                <Label htmlFor="name" className="text-sm font-medium text-gray-900">Internal Name *</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="name" className="text-sm font-medium">Internal Name</Label>
+                  <span className="text-destructive">*</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>For your internal reference only</TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input 
                   id="name" 
                   {...register("name")} 
                   className="mt-1.5"
                   placeholder="e.g., CS101 Intro Bot" 
                 />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
-                <p className="mt-1 text-xs text-gray-500">For your internal reference only</p>
+                {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>}
               </div>
 
               <div>
-                <Label htmlFor="student_facing_name" className="text-sm font-medium text-gray-900">Student-Facing Name</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="student_facing_name" className="text-sm font-medium">Student-Facing Name</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>Displayed to students in chat</TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input 
                   id="student_facing_name" 
                   {...register("student_facing_name")} 
                   className="mt-1.5"
                   placeholder="e.g., Course Helper" 
                 />
-                <p className="mt-1 text-xs text-gray-500">Displayed to students in chat</p>
-                {errors.student_facing_name && <p className="mt-1 text-xs text-red-600">{errors.student_facing_name.message}</p>}
+                {errors.student_facing_name && <p className="mt-1 text-xs text-destructive">{errors.student_facing_name.message}</p>}
               </div>
 
               <div>
-                <Label htmlFor="description" className="text-sm font-medium text-gray-900">Description</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                </div>
                 <Textarea 
                   id="description" 
                   {...register("description")} 
@@ -128,27 +166,23 @@ export function GeneralSettingsSection({ chatbot, chatbotId }: GeneralSettingsSe
                   className="mt-1.5 resize-none"
                   placeholder="A brief summary of what this chatbot helps with..."
                 />
-                {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
+                {errors.description && <p className="mt-1 text-xs text-destructive">{errors.description.message}</p>}
               </div>
-            </CardContent>
-          </Card>
+            </FieldsetBlock>
+          </div>
           
-          {/* Initial Interaction Card */}
-          <Card className="shadow-none border-0 bg-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <div className="p-1.5 bg-green-100 rounded-lg">
-                  <MessageSquare className="h-4 w-4 text-green-600" />
-                </div>
-                Initial Interaction
-              </CardTitle>
-              <CardDescription>
-                Configure the first message users see when they start a conversation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div>
+            <FieldsetBlock title="Initial Interaction" icon={<MessageSquare className="h-4 w-4" />} index={1}>
               <div>
-                <Label htmlFor="welcome_message" className="text-sm font-medium text-gray-900">Welcome Message</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="welcome_message" className="text-sm font-medium">Welcome Message</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>First message users see when they start a conversation</TooltipContent>
+                  </Tooltip>
+                </div>
                 <Textarea 
                   id="welcome_message" 
                   {...register("welcome_message")} 
@@ -156,24 +190,17 @@ export function GeneralSettingsSection({ chatbot, chatbotId }: GeneralSettingsSe
                   className="mt-1.5 resize-none"
                   placeholder="Hello! I'm here to help. Ask me anything about the course." 
                 />
-                <p className="mt-1 text-xs text-gray-500">Keep it friendly and informative!</p>
-                {errors.welcome_message && <p className="mt-1 text-xs text-red-600">{errors.welcome_message.message}</p>}
+                {errors.welcome_message && <p className="mt-1 text-xs text-destructive">{errors.welcome_message.message}</p>}
               </div>
-            </CardContent>
-          </Card>
+            </FieldsetBlock>
         </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end pt-4 border-t border-gray-100">
-          <Button 
-            type="submit" 
-            disabled={isUpdating || !isDirty} 
-            className="bg-gray-900 text-white hover:bg-gray-800 px-6 h-10 font-medium"
-          >
-            {isUpdating ? 'Saving...' : 'Save Changes'}
-          </Button>
         </div>
       </form>
+
+      {/* Preview chip */}
+      {watch('welcome_message') ? (
+        <p className="text-xs text-muted-foreground mt-1">Students will see: <span className="font-medium">{watch('welcome_message')!.slice(0,40)}{watch('welcome_message')!.length>40?'…':''}</span></p>
+      ) : null}
     </div>
   );
 } 

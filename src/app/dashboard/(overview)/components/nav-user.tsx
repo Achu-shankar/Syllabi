@@ -2,23 +2,21 @@
 
 import * as React from "react";
 import Link from 'next/link';
-import { createClient } from "@/utils/supabase/client"; // Client-side Supabase
-import { signOutAction } from "@/app/actions"; // Ensure this path is correct
+import { createClient } from "@/utils/supabase/client";
+import { signOutAction } from "@/app/actions";
 import {
+  CaretUpDown,
   CreditCard,
-  LogOut,
-  UserCircle as AccountIcon, // Renamed for clarity if UserCircle is also a nav icon
-  ChevronsUpDown,
-  Settings2 as SettingsIcon, // Example if you have a general settings page too
-  Bell // For Notifications if needed
-} from "lucide-react";
-import BoringAvatar from "boring-avatars"; // Assuming this is correctly installed and available
+  User as AccountIcon,
+  SignOut as LogOut,
+} from "@phosphor-icons/react";
 
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,30 +94,23 @@ export function NavUser() {
     );
   }
 
-  const displayName = user.user_metadata?.full_name || user.email || "User";
-  const displayEmail = user.email || "";
+  const userInitial = user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0) || "U";
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <BoringAvatar
-                size={32} // Adjusted size for sidebar
-                name={user.email || user.id} // Use email or ID for consistent avatar
-                variant="beam"
-                colors={["#5b1d99","#0074b4","#00b34c","#ffd41f","#fc6e3d"]}
-              />
-              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">{displayName}</span>
-                {displayEmail && <span className="truncate text-xs text-muted-foreground">{displayEmail}</span>}
-              </div>
-              <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
-            </SidebarMenuButton>
+            <Button variant="ghost" className="w-full justify-start items-center gap-2 px-2 py-6">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || ""} />
+                <AvatarFallback>{userInitial}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground truncate">
+                {user.email}
+              </span>
+              <CaretUpDown className="ml-auto h-4 w-4" />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
@@ -127,32 +118,30 @@ export function NavUser() {
             align="end"
             sideOffset={10} // Adjust as needed
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                 <BoringAvatar
-                    size={32}
-                    name={user.email || user.id}
-                    variant="beam"
-                    colors={["#5b1d99","#0074b4","#00b34c","#ffd41f","#fc6e3d"]}
-                  />
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{displayName}</span>
-                  {displayEmail && <span className="truncate text-xs text-muted-foreground">{displayEmail}</span>}
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex items-center gap-3 p-1">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || ""} />
+                  <AvatarFallback>{userInitial}</AvatarFallback>
+                </Avatar>
+                <div className="grid">
+                  <span className="font-semibold">{user.user_metadata?.full_name || "User"}</span>
+                  <span className="text-xs text-muted-foreground">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/account">
+                <Link href="/dashboard/account" className="flex items-center w-full">
                   <AccountIcon className="mr-2 h-4 w-4" />
-                Account
+                  Account
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/billing">
+                <Link href="/dashboard/billing" className="flex items-center w-full">
                   <CreditCard className="mr-2 h-4 w-4" />
-                Billing
+                  Billing
                 </Link>
               </DropdownMenuItem>
               {/* Add other items like Notifications if needed */}
@@ -166,9 +155,9 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <form action={signOutAction} className="w-full">
-                <button type="submit" className="flex items-center w-full text-sm p-2 hover:bg-accent rounded-sm">
+                <button type="submit" className="flex items-center w-full text-left p-0 m-0 bg-transparent border-none text-sm">
                   <LogOut className="mr-2 h-4 w-4" />
-              Log out
+                  Log out
                 </button>
               </form>
             </DropdownMenuItem>

@@ -1,0 +1,42 @@
+{
+  "name": "enum_test",
+  "display_name": "Enum Test",
+  "description": "Test enum parameter validation and handling",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "enum_test", 
+    "description": "Test function with enum parameters for priority, category, and status",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "urgent"],
+          "description": "Task priority level"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["general", "technical", "business", "personal"],
+          "description": "Category classification"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive", "pending", "completed"],
+          "description": "Current status"
+        }
+      },
+      "required": ["priority", "category"]
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "http://localhost:8000/enum-test",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

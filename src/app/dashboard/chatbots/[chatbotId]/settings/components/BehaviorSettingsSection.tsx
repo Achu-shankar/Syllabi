@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,6 +20,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useUpdateChatbotSettings } from '../../hooks/useChatbotSettings';
 import { UpdateChatbotPayload, Chatbot } from '@/app/dashboard/libs/queries';
+import { useSettingsDirty } from './SettingsDirtyContext';
+import { FieldsetBlock } from './FieldsetBlock';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpCircle, Cpu, MessageSquareCode } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Define available AI models
 const AVAILABLE_AI_MODELS = [
@@ -181,6 +186,7 @@ interface BehaviorSettingsSectionProps {
 
 export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettingsSectionProps) {
   const { mutate: updateSettings, isPending: isUpdating } = useUpdateChatbotSettings(chatbotId);
+  const { setDirty, registerSaveHandler, registerResetHandler } = useSettingsDirty();
   
   const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false);
   const [isBuilderDialogOpen, setIsBuilderDialogOpen] = useState(false);
@@ -212,15 +218,24 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
 
   const currentTemperature = watch("temperature");
 
+  const lastSavedFormRef = useRef<BehaviorFormData | null>(null);
+
   useEffect(() => {
     if (chatbot) {
-      reset({
+      const initialForm: BehaviorFormData = {
         ai_model_identifier: chatbot.ai_model_identifier || AVAILABLE_AI_MODELS[0].id,
         system_prompt: chatbot.system_prompt || "",
         temperature: chatbot.temperature === null || chatbot.temperature === undefined ? 0.7 : chatbot.temperature, 
-      });
+      };
+      reset(initialForm);
+      lastSavedFormRef.current = initialForm;
     }
   }, [chatbot, reset]);
+
+  // Watch for dirty state and update context
+  useEffect(() => {
+    setDirty('behavior', isDirty);
+  }, [isDirty, setDirty]);
 
   const handlePresetSelect = (prompt: string) => {
     setValue("system_prompt", prompt, { shouldDirty: true });
@@ -295,14 +310,34 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
     toast.success("Custom system prompt generated and applied");
   };
 
-  const onSubmit: SubmitHandler<BehaviorFormData> = (formData) => {
+  const onSubmit = useCallback<SubmitHandler<BehaviorFormData>>((formData) => {
     const payload: UpdateChatbotPayload = {
       ai_model_identifier: formData.ai_model_identifier,
       system_prompt: formData.system_prompt || undefined,
       temperature: formData.temperature,
     };
-    updateSettings(payload);
-  };
+    updateSettings(payload, {
+      onSuccess: () => {
+        lastSavedFormRef.current = formData;
+      }
+    });
+  }, [updateSettings]);
+
+  // Register save handler
+  useEffect(() => {
+    registerSaveHandler('behavior', async () => {
+      await handleSubmit(onSubmit)();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerSaveHandler, handleSubmit, onSubmit]);
+
+  useEffect(() => {
+    registerResetHandler('behavior', async () => {
+      if (lastSavedFormRef.current) {
+        reset(lastSavedFormRef.current);
+      }
+    });
+  }, [registerResetHandler, reset]);
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -314,21 +349,18 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        {/* Model Configuration Section */}
-        <div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="h-6 w-6 bg-blue-100 dark:bg-blue-900 rounded flex items-center justify-center text-sm">
-              🧠
-            </div>
-            <h3 className="text-lg font-medium text-foreground">Model Configuration</h3>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            Select the AI model and configure its creativity level
-          </p>
-          
+        <FieldsetBlock title="Model Configuration" icon={<Cpu className="h-4 w-4" />} required index={0}>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
+              <div className="flex items-center gap-1.5">
               <Label htmlFor="ai_model_identifier" className="text-sm font-medium">AI Model</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>OpenAI model used for chat completions</TooltipContent>
+                </Tooltip>
+              </div>
               <Controller
                 name="ai_model_identifier"
                 control={control}
@@ -360,11 +392,17 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
                 <p className="mt-1 text-xs text-destructive">{errors.ai_model_identifier.message}</p>
               )}
             </div>
-
             <div>
-              <Label htmlFor="temperature" className="text-sm font-medium block mb-2">
-                Temperature: <Badge variant="secondary">{currentTemperature?.toFixed(2)}</Badge>
-              </Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="temperature" className="text-sm font-medium block mb-2">Temperature</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>Controls randomness/creativity of responses</TooltipContent>
+                </Tooltip>
+                <Badge variant="secondary">{currentTemperature?.toFixed(2)}</Badge>
+              </div>
               <Controller
                 name="temperature"
                 control={control}
@@ -393,24 +431,11 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
               </p>
             </div>
           </div>
-        </div>
+        </FieldsetBlock>
 
-        <Separator />
-
-        {/* System Prompt Section */}
-        <div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="h-6 w-6 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center text-sm">
-              📝
-            </div>
-            <h3 className="text-lg font-medium text-foreground">System Prompt</h3>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            Define your AI's personality, expertise, and response style
-          </p>
-
-          <div className="space-y-4">
+        <FieldsetBlock title="System Prompt" icon={<MessageSquareCode className="h-4 w-4" />} index={1}>
             <div className="flex gap-3 mb-4">
+            <motion.div whileHover={{ y: -1 }}>
               <Dialog open={isPresetDialogOpen} onOpenChange={setIsPresetDialogOpen}>
                 <DialogTrigger asChild>
                   <Button type="button" variant="outline" className="flex items-center gap-2">
@@ -451,7 +476,8 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
                   </Tabs>
                 </DialogContent>
               </Dialog>
-
+            </motion.div>
+            <motion.div whileHover={{ y: -1 }}>
               <Dialog open={isBuilderDialogOpen} onOpenChange={setIsBuilderDialogOpen}>
                 <DialogTrigger asChild>
                   <Button type="button" variant="outline" className="flex items-center gap-2">
@@ -502,10 +528,18 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+            </motion.div>
             </div>
-
             <div>
+            <div className="flex items-center gap-1.5">
               <Label htmlFor="system_prompt" className="text-sm font-medium">Custom System Prompt</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>Sets the foundation for how your AI behaves</TooltipContent>
+              </Tooltip>
+            </div>
               <Textarea
                 id="system_prompt"
                 {...register("system_prompt")}
@@ -518,24 +552,10 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
                 <p className="mt-1 text-xs text-destructive">{errors.system_prompt.message}</p>
               )}
               <p className="text-xs text-muted-foreground mt-2">
-                This prompt sets the foundation for how your AI behaves. Be specific about tone, expertise, and style.
+              {watch('system_prompt') ? `Prompt length: ${watch('system_prompt')!.length} chars` : 'This prompt sets the foundation for how your AI behaves. Be specific about tone, expertise, and style.'}
               </p>
-            </div>
           </div>
-        </div>
-
-        <Separator />
-
-        <div className="flex justify-end pt-4">
-          <Button 
-            type="submit" 
-            disabled={isUpdating || !isDirty} 
-            className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
-            size="lg"
-          >
-            {isUpdating ? 'Saving...' : 'Save Configuration'}
-          </Button>
-        </div>
+        </FieldsetBlock>
       </form>
     </div>
   );

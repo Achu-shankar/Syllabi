@@ -12,7 +12,8 @@ import { useContentSources } from '../../lib/hooks/useContentSources'; // Keep f
 import { ContentSource } from '../../lib/db/content_queries';
 import MediaPlayer from './MediaPlayer';
 import { useChatTheme } from '../../../contexts/ChatbotThemeContext';
-import { PdfViewer, CorePdfViewerPdfJsRef } from './pdf-viewer';
+import { PdfViewer } from './pdf-viewer';
+import type { CorePdfViewerPdfJsRef } from './pdf-viewer';
 import { usePdfViewerStore } from './pdf-viewer/store/pdfViewerStore';
 
 const ZOOM_LEVELS = [

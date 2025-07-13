@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Copy, Link as LinkIcon, Users, Globe, Lock, Search, X, UserPlus, Code, Monitor } from 'lucide-react';
+import { Copy, Check, Link as LinkIcon, Users, Globe, Lock, Search, X, UserPlus, Code, Monitor, MessageCircle, Eye } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,38 @@ import {
 } from '../hooks/useChatbotSharing';
 import { ChatbotVisibility } from '@/app/dashboard/libs/queries';
 import { toast } from 'sonner';
+import { getProductionBaseUrl, getCurrentBaseUrl } from '@/utils/url';
+
+// Chat Bubble Components
+import { ChatBubblePreview } from './components/ChatBubblePreview';
+import { ChatBubbleConfigurator } from './components/ChatBubbleConfigurator';
+import { ChatBubbleCodeDisplay } from './components/ChatBubbleCodeDisplay';
+import { BubbleStyleSelector } from './components/BubbleStyleSelector';
+import { BUBBLE_STYLES } from './components/bubbleStyles';
+import { BubbleConfig, DEFAULT_BUBBLE_CONFIG } from './types/chatBubble';
+import { FieldsetBlock } from '../settings/components/FieldsetBlock';
+import { VisibilityCard } from './components/VisibilityCard';
+import { ChatBubbleDrawer } from './components/ChatBubbleDrawer';
+
+// Copy button with icon swap feedback
+function CopyButton({ text, className }: { text: string; className?: string }) {
+  const [copied, setCopied] = React.useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleCopy}
+      className={className}
+    >
+      {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+    </Button>
+  );
+}
 
 export default function ChatbotSharingPage() {
   const params = useParams();
@@ -30,6 +62,15 @@ export default function ChatbotSharingPage() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVisibility, setSelectedVisibility] = useState<ChatbotVisibility>('private');
+  
+  // Chat Bubble State
+  const [bubbleConfig, setBubbleConfig] = useState<BubbleConfig>(DEFAULT_BUBBLE_CONFIG);
+  const [selectedStyleId, setSelectedStyleId] = useState('standard');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [draftConfig, setDraftConfig] = useState<BubbleConfig>(bubbleConfig);
+  const [draftStyleId, setDraftStyleId] = useState(selectedStyleId);
+  const prevConfigRef = React.useRef<BubbleConfig>(bubbleConfig);
+  const prevTemplateRef = React.useRef(selectedStyleId);
 
   // Hooks for chatbot data and sharing functionality
   const { data: chatbot, isLoading: isLoadingChatbot } = useFetchChatbotDetails(chatbotId);
@@ -74,8 +115,14 @@ export default function ChatbotSharingPage() {
     ? generateShareableUrl(chatbotId, chatbot.shareable_url_slug)
     : generateShareableUrl(chatbotId);
 
-  const iframeCode = `<iframe src="${publicUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
-  const scriptCode = `<script src="https://app.syllabi.io/embed.js" data-chatbot-id="${chatbotId}"></script>`;
+  // Generate embedded URLs
+  // Use production URL for generated code (so it works when users copy/paste)
+  const embeddedUrlForCode = `${getProductionBaseUrl()}/embed/${chatbot?.shareable_url_slug}?session=persistent&theme=light`;
+  // Use current URL for preview (so preview works in development)
+  const embeddedUrlForPreview = `${getCurrentBaseUrl()}/embed/${chatbot?.shareable_url_slug}?session=persistent&theme=light`;
+  
+  const iframeCode = `<iframe src="${embeddedUrlForCode}" width="100%" height="600px" frameborder="0" style="border: none; border-radius: 8px;"></iframe>`;
+  const scriptCode = `<script src="${getProductionBaseUrl()}/embed.js" data-chatbot-slug="${chatbot?.shareable_url_slug}" data-session="persistent" data-theme="light"></script>`;
 
   if (isLoadingChatbot) {
     return (
@@ -99,7 +146,7 @@ export default function ChatbotSharingPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 mt-10 mb-20">
       {/* Header Section */}
       <div>
         <h1 className="text-2xl font-semibold text-foreground mb-2">Sharing & Embedding</h1>
@@ -109,101 +156,41 @@ export default function ChatbotSharingPage() {
       </div>
 
       {/* Visibility Settings Section */}
-      <div>
-        <div className="flex items-center gap-2 mb-6">
-          <div className="h-6 w-6 bg-indigo-100 dark:bg-indigo-900 rounded flex items-center justify-center text-sm">
-            👁️
-          </div>
-          <h2 className="text-lg font-medium text-foreground">Visibility Settings</h2>
-        </div>
-        <p className="text-sm text-muted-foreground mb-6">
-          Choose who can access and interact with your chatbot
-        </p>
-        
-        <RadioGroup 
-          value={selectedVisibility} 
+      <FieldsetBlock title="Visibility Settings" icon={<Eye className="h-4 w-4" />} index={0}>
+        <p className="text-sm text-muted-foreground mb-4">Choose who can access and interact with your chatbot</p>
+        <RadioGroup
+          value={selectedVisibility}
           onValueChange={handleVisibilityChange}
           disabled={isUpdatingVisibility}
-          className="space-y-3"
+          className="grid grid-cols-1 md:grid-cols-3 gap-3"
         >
-          {/* Private Option */}
-          <div className={`relative p-4 rounded-lg border-2 transition-all cursor-pointer ${
-            selectedVisibility === 'private' 
-              ? 'border-gray-300 bg-gray-50' 
-              : 'border-gray-200 hover:border-gray-300'
-          }`}>
-            <RadioGroupItem value="private" id="private" className="absolute top-4 right-4" />
-            <Label htmlFor="private" className="cursor-pointer block">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <Lock className="h-4 w-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">Private</h3>
-                  <p className="text-sm text-muted-foreground">Only you can access this chatbot</p>
-                </div>
-              </div>
-            </Label>
-          </div>
-
-          {/* Public Option */}
-          <div className={`relative p-4 rounded-lg border-2 transition-all cursor-pointer ${
-            selectedVisibility === 'public' 
-              ? 'border-green-300 bg-green-50' 
-              : 'border-gray-200 hover:border-gray-300'
-          }`}>
-            <RadioGroupItem value="public" id="public" className="absolute top-4 right-4" />
-            <Label htmlFor="public" className="cursor-pointer block">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Globe className="h-4 w-4 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">Public</h3>
-                  <p className="text-sm text-muted-foreground">Anyone with the link can access your chatbot</p>
-                </div>
-              </div>
-            </Label>
-          </div>
-
-          {/* Shared Option */}
-          <div className={`relative p-4 rounded-lg border-2 transition-all cursor-pointer ${
-            selectedVisibility === 'shared' 
-              ? 'border-blue-300 bg-blue-50' 
-              : 'border-gray-200 hover:border-gray-300'
-          }`}>
-            <RadioGroupItem value="shared" id="shared" className="absolute top-4 right-4" />
-            <Label htmlFor="shared" className="cursor-pointer block">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Users className="h-4 w-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium">Shared</h3>
-                  <p className="text-sm text-muted-foreground">Only invited users can access your chatbot</p>
-                </div>
-              </div>
-            </Label>
-          </div>
+          <VisibilityCard
+            value="private"
+            selected={selectedVisibility === 'private'}
+            label="Private"
+            description="Only you"
+          />
+          <VisibilityCard
+            value="public"
+            selected={selectedVisibility === 'public'}
+            label="Public"
+            description="Anyone with link"
+          />
+          <VisibilityCard
+            value="shared"
+            selected={selectedVisibility === 'shared'}
+            label="Shared"
+            description="Invited users"
+          />
         </RadioGroup>
-      </div>
+      </FieldsetBlock>
 
       {/* User Management Section - Only show when visibility is 'shared' */}
       {selectedVisibility === 'shared' && (
         <>
           <Separator />
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-blue-100 dark:bg-blue-900 rounded flex items-center justify-center text-sm">
-                👥
-              </div>
-              <h2 className="text-lg font-medium text-foreground">Manage Access</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Search and invite users to collaborate with your chatbot
-            </p>
-            
-            <div className="space-y-6">
+          <FieldsetBlock title="Manage Access" icon={<Users className="h-4 w-4" />} index={2}>
+            <div className="space-y-4">
               {/* User Search */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Search Users</Label>
@@ -340,7 +327,7 @@ export default function ChatbotSharingPage() {
                 )}
               </div>
             </div>
-          </div>
+          </FieldsetBlock>
         </>
       )}
 
@@ -348,33 +335,13 @@ export default function ChatbotSharingPage() {
       {(selectedVisibility === 'public' || selectedVisibility === 'shared') && (
         <>
           <Separator />
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-green-100 dark:bg-green-900 rounded flex items-center justify-center text-sm">
-                🔗
-              </div>
-              <h2 className="text-lg font-medium text-foreground">Shareable Link</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Share this link with your {selectedVisibility === 'public' ? 'audience' : 'invited users'}
-            </p>
-            
+          <FieldsetBlock title="Shareable Link" icon={<LinkIcon className="h-4 w-4" />} index={1}>
             <div className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4 text-muted-foreground" />
-              <Input 
-                readOnly 
-                value={publicUrl} 
-                className="flex-1 font-mono text-sm" 
-              />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => copyToClipboard(publicUrl)}
-              >
-            <Copy className="h-4 w-4" />
-          </Button>
+              <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <Input readOnly value={publicUrl} className="flex-1 font-mono text-sm" />
+              <CopyButton text={publicUrl} />
             </div>
-          </div>
+          </FieldsetBlock>
         </>
       )}
 
@@ -382,28 +349,31 @@ export default function ChatbotSharingPage() {
       {selectedVisibility === 'public' && (
         <>
           <Separator />
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center text-sm">
-                💻
-              </div>
-              <h2 className="text-lg font-medium text-foreground">Embed Chatbot</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Integrate your chatbot directly into your website
-            </p>
-
-      <Tabs defaultValue="iframe" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="iframe" className="flex items-center gap-2">
+          <FieldsetBlock title="Embed Chatbot" icon={<Monitor className="h-4 w-4" />} index={2}>
+            <Tabs defaultValue="iframe" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger
+                  value="iframe"
+                  className="relative flex items-center gap-2.5 px-4 py-1.5 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-gradient-to-r after:from-purple-500 after:via-pink-500 after:to-yellow-500 data-[state=active]:after:scale-x-100 after:transition-transform after:origin-left"
+                >
                   <Monitor className="h-4 w-4" />
                   Iframe
                 </TabsTrigger>
-                <TabsTrigger value="script" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="script"
+                  className="relative flex items-center gap-2.5 px-4 py-1.5 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-gradient-to-r after:from-purple-500 after:via-pink-500 after:to-yellow-500 data-[state=active]:after:scale-x-100 after:transition-transform after:origin-left"
+                >
                   <Code className="h-4 w-4" />
                   Script
                 </TabsTrigger>
-        </TabsList>
+                <TabsTrigger
+                  value="chat-bubble"
+                  className="relative flex items-center gap-2.5 px-4 py-1.5 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-gradient-to-r after:from-purple-500 after:via-pink-500 after:to-yellow-500 data-[state=active]:after:scale-x-100 after:transition-transform after:origin-left"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat Bubble
+                </TabsTrigger>
+              </TabsList>
               
               <TabsContent value="iframe" className="space-y-3">
                 <Label className="text-sm font-medium">HTML Iframe Code</Label>
@@ -411,19 +381,12 @@ export default function ChatbotSharingPage() {
                   <pre className="p-3 bg-gray-900 text-gray-100 rounded-md text-sm overflow-x-auto">
                         <code>{iframeCode}</code>
                     </pre>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(iframeCode)}
-                    className="absolute top-2 right-2 h-6 px-2 text-xs bg-white/10 text-white border-white/20"
-                  >
-                    <Copy className="h-3 w-3" />
-                    </Button>
+                  <CopyButton text={iframeCode} className="absolute top-2 right-2" />
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Copy and paste this code where you want the chatbot to appear.
                 </p>
-        </TabsContent>
+              </TabsContent>
               
               <TabsContent value="script" className="space-y-3">
                 <Label className="text-sm font-medium">JavaScript Embed Code</Label>
@@ -431,23 +394,89 @@ export default function ChatbotSharingPage() {
                   <pre className="p-3 bg-gray-900 text-gray-100 rounded-md text-sm overflow-x-auto">
                         <code>{scriptCode}</code>
                     </pre>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(scriptCode)}
-                    className="absolute top-2 right-2 h-6 px-2 text-xs bg-white/10 text-white border-white/20"
-                  >
-                    <Copy className="h-3 w-3" />
-                    </Button>
+                  <CopyButton text={scriptCode} className="absolute top-2 right-2" />
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Place this script tag before the closing &lt;/body&gt; tag.
                 </p>
-        </TabsContent>
-      </Tabs>
-          </div>
+              </TabsContent>
+
+              <TabsContent value="chat-bubble" className="space-y-8">
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5" />
+                    Chat Bubble Widget
+                  </h3>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Create a floating chat bubble that opens your chatbot. Perfect for customer support and lead generation.
+                  </p>
+                </div>
+
+                {/* Preview */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">Live Preview</h3>
+                  <div className="sticky top-4">
+                    <ChatBubblePreview 
+                      config={bubbleConfig}
+                      embeddedUrl={`${getCurrentBaseUrl()}/embed/${chatbot?.shareable_url_slug}`}
+                    />
+                  </div>
+                </div>
+
+                <Button variant="outline" onClick={() => {
+                  prevConfigRef.current = bubbleConfig;
+                  prevTemplateRef.current = selectedStyleId;
+                  setDraftConfig(bubbleConfig);
+                  setDraftStyleId(selectedStyleId);
+                  setDrawerOpen(true);
+                }}>Customize Bubble</Button>
+
+                {/* Generated Code Section */}
+                <div className="border-t pt-8">
+                  <h3 className="text-xl font-semibold mb-6">Generated Code</h3>
+                  <ChatBubbleCodeDisplay
+                    config={bubbleConfig}
+                    selectedTemplateId={selectedStyleId}
+                    chatbotSlug={chatbot?.shareable_url_slug || 'chatbot'}
+                    embeddedUrl={`${getProductionBaseUrl()}/embed/${chatbot?.shareable_url_slug}`}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </FieldsetBlock>
         </>
       )}
+
+      {/* Drawer */}
+      <ChatBubbleDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onSave={() => {
+          setDrawerOpen(false);
+        }}
+        saving={false}
+        onCancel={() => {
+          setBubbleConfig(prevConfigRef.current);
+          setSelectedStyleId(prevTemplateRef.current);
+          setDrawerOpen(false);
+        }}
+      >
+        <div className="space-y-6">
+          <BubbleStyleSelector
+            styles={BUBBLE_STYLES}
+            selectedId={draftStyleId}
+            onSelect={(style)=>{
+              setDraftStyleId(style.id);
+              setDraftConfig({...style.config});
+              setBubbleConfig({...style.config});
+            }}
+          />
+          <ChatBubbleConfigurator
+            config={draftConfig}
+            onChange={(cfg)=>{setDraftConfig(cfg); setBubbleConfig(cfg);}}
+          />
+        </div>
+      </ChatBubbleDrawer>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useForm, Controller, SubmitHandler, useFieldArray } from 'react-hook-form';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useForm, Controller, SubmitHandler, useFieldArray, UseFormRegister } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
@@ -13,12 +13,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useUpdateChatbotSettings } from '../../hooks/useChatbotSettings';
-import { UpdateChatbotPayload, ThemeConfig, ThemeColors, Chatbot } from '@/app/dashboard/libs/queries';
-import { predefinedThemes } from './themes';
+import { useAvailableThemes, useCreateCustomTheme, useUpdateCustomTheme, useDuplicateTheme, useToggleThemeFavorite, useDeleteCustomTheme, useUpdateAnyCustomTheme } from '../../hooks/useThemes';
+import { UpdateChatbotPayload, ThemeConfig, ThemeColors, Chatbot, EnhancedThemeConfig, DefaultTheme, UserCustomTheme, CreateCustomThemePayload } from '@/app/dashboard/libs/queries';
+import { extractThemeConfig, isEnhancedThemeConfig } from '@/app/dashboard/libs/theme-utils';
 import { ImagePicker } from './ImagePicker';
 import { aiMessageAvatarPresets, userMessageAvatarPresets, brandingLogoPresets } from './avatarPresets';
 import { ChatPreview } from './ChatPreview';
-import { Sun, Moon, Plus, X } from 'lucide-react';
+import { Sun, Moon, Plus, X, Star, Copy, Trash2, Palette, Save, Edit, UserCircle2, MessageSquareText, BadgeDollarSign, GripVertical } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { useSettingsDirty } from './SettingsDirtyContext';
+import { FieldsetBlock } from './FieldsetBlock';
+import { motion } from 'framer-motion';
+import { ThemeCard } from './ThemeCard';
+import { ThemePopover } from './ThemePopover';
+import { ThemeCustomizationDrawer } from './ThemeCustomizationDrawer';
+import { ColorControls } from './ColorControls';
+import { TypographyControls } from './TypographyControls';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Zod schema for ThemeColors
 const themeColorsSchema = z.object({
@@ -60,7 +74,7 @@ const themeConfigSchema = z.object({
 }).catchall(z.any());
 
 const appearanceSettingsSchema = z.object({
-  student_facing_name: z.string().optional().nullable(),
+  student_facing_name: z.string().max(50, 'Max 50 characters').optional().nullable(),
   branding_logo_url: z.string()
     .optional()
     .nullable()
@@ -70,12 +84,58 @@ const appearanceSettingsSchema = z.object({
     }, { message: "Please enter a valid URL for branding logo or leave it empty." }),
   theme: themeConfigSchema,
   selectedThemeId: z.string().optional(), 
-  suggested_questions: z.array(z.object({ text: z.string().min(1, "Suggestion cannot be empty.") })).optional(),
+  selectedThemeType: z.enum(['default', 'custom']).optional(),
+  selectedCustomThemeId: z.string().optional(), 
+  suggested_questions: z.array(
+    z.object({ text: z.string().min(3, 'Min 3 characters') })
+  ).max(6, 'Max 6 suggestions').optional(),
 });
 
 type AppearanceFormData = z.infer<typeof appearanceSettingsSchema>;
 
-const defaultThemeConfig = predefinedThemes[0].config;
+// Helper function to extract theme source info
+function extractThemeSource(theme: EnhancedThemeConfig | ThemeConfig | any): { type: 'default' | 'custom'; themeId?: string; customThemeId?: string } {
+  // If it's the new enhanced format
+  if (isEnhancedThemeConfig(theme)) {
+    return {
+      type: theme.source.type,
+      themeId: theme.source.themeId,
+      customThemeId: theme.source.customThemeId
+    };
+  }
+  // Legacy format - try to extract themeId from config
+  const config = theme as ThemeConfig;
+  return {
+    type: 'default',
+    themeId: config?.themeId
+  };
+}
+
+// Helper function to create enhanced theme config
+function createEnhancedThemeConfig(
+  source: { type: 'default' | 'custom'; themeId?: string; customThemeId?: string },
+  themeConfig: ThemeConfig,
+  existingAvatars?: { ai?: string | null; user?: string | null }
+): EnhancedThemeConfig {
+  return {
+    source: {
+      type: source.type,
+      themeId: source.themeId,
+      customThemeId: source.customThemeId,
+      lastSyncedAt: new Date().toISOString()
+    },
+    config: {
+      ...themeConfig,
+      aiMessageAvatarUrl: existingAvatars?.ai !== undefined ? existingAvatars.ai : themeConfig.aiMessageAvatarUrl,
+      userMessageAvatarUrl: existingAvatars?.user !== undefined ? existingAvatars.user : themeConfig.userMessageAvatarUrl,
+    },
+    customizations: {
+      hasCustomColors: false,
+      hasCustomAvatars: !!(existingAvatars?.ai || existingAvatars?.user),
+      hasCustomFonts: false
+    }
+  };
+}
 
 interface AppearanceSettingsSectionProps {
   chatbot: Chatbot | undefined;
@@ -84,7 +144,28 @@ interface AppearanceSettingsSectionProps {
 
 export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSettingsSectionProps) {
   const [previewMode, setPreviewMode] = useState<'light' | 'dark'>('light');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentThemeSource, setCurrentThemeSource] = useState<{ type: 'default' | 'custom'; themeId?: string; customThemeId?: string } | null>(null);
+  const [saveThemeDialogOpen, setSaveThemeDialogOpen] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+  const [newThemeDescription, setNewThemeDescription] = useState('');
+  const [editThemeDialogOpen, setEditThemeDialogOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<UserCustomTheme | null>(null);
+  const [editThemeName, setEditThemeName] = useState('');
+  const [editThemeDescription, setEditThemeDescription] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'light'|'dark'>('light');
+
   const { mutate: updateSettings, isPending: isUpdating } = useUpdateChatbotSettings(chatbotId);
+  
+  // Use the comprehensive theme hook
+  const { data: availableThemes, isLoading: themesLoading, error: themesError } = useAvailableThemes();
+  const { mutate: createCustomTheme, isPending: isCreatingTheme } = useCreateCustomTheme();
+  const { mutate: updateCustomTheme, isPending: isUpdatingTheme } = useUpdateCustomTheme(currentThemeSource?.customThemeId || '');
+  const { mutate: duplicateTheme, isPending: isDuplicatingTheme } = useDuplicateTheme();
+  const { mutate: toggleFavorite } = useToggleThemeFavorite();
+  const { mutate: deleteTheme } = useDeleteCustomTheme();
+  const { mutate: updateAnyCustomTheme, isPending: isUpdatingAnyTheme } = useUpdateAnyCustomTheme();
 
   const {
     control,
@@ -100,71 +181,266 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
     defaultValues: {
       student_facing_name: '',
       branding_logo_url: '',
-      theme: defaultThemeConfig,
-      selectedThemeId: predefinedThemes[0].id,
+      theme: {} as ThemeConfig,
+      selectedThemeId: '',
+      selectedThemeType: 'default',
+      selectedCustomThemeId: '',
       suggested_questions: [],
     }
   });
 
-  const { fields, append, remove } = useFieldArray<AppearanceFormData, "suggested_questions", "id">({
+  const { fields, append, remove, move } = useFieldArray<AppearanceFormData, "suggested_questions", "id">({
     control,
     name: "suggested_questions",
   });
 
   const watchedFormValues = watch();
 
+  const { setDirty, registerSaveHandler, registerResetHandler } = useSettingsDirty();
+
+  // Persisted (last saved) theme identifier like "custom:uuid" or "default:themeId"
+  const savedThemeRef = useRef<string>('');
+  const lastSavedFormRef = useRef<AppearanceFormData | null>(null);
+
+  // dnd-kit sensors (must be declared unconditionally)
+  const sensors = useSensors(useSensor(PointerSensor));
+
   useEffect(() => {
-    if (chatbot) {
-      const initialThemeConf = chatbot.theme && typeof chatbot.theme === 'object' ? chatbot.theme as ThemeConfig : defaultThemeConfig;
+    if (chatbot && availableThemes) {
+      const currentTheme = extractThemeConfig(chatbot.theme);
+      const themeSource = extractThemeSource(chatbot.theme);
+      setCurrentThemeSource(themeSource);
       
-      const savedThemeId = initialThemeConf.themeId;
-      let initialSelectedThemeId = predefinedThemes[0].id;
+      // Find the matching theme
+      let initialSelectedThemeType: 'default' | 'custom' = 'default';
+      let initialSelectedThemeId = '';
+      let initialSelectedCustomThemeId = '';
       
-      if (savedThemeId) {
-        const matchingTheme = predefinedThemes.find(pt => pt.id === savedThemeId);
-        if (matchingTheme) {
-          initialSelectedThemeId = savedThemeId;
+      if (themeSource.type === 'custom' && themeSource.customThemeId) {
+        const matchingCustomTheme = availableThemes.custom.find(ct => ct.id === themeSource.customThemeId);
+        if (matchingCustomTheme) {
+          initialSelectedThemeType = 'custom';
+          initialSelectedCustomThemeId = matchingCustomTheme.id;
         }
-      } else {
-        const matchedTheme = predefinedThemes.find(pt => 
-          JSON.stringify(pt.config.light) === JSON.stringify(initialThemeConf?.light) &&
-          JSON.stringify(pt.config.dark) === JSON.stringify(initialThemeConf?.dark)
-        );
-        if (matchedTheme) {
-          initialSelectedThemeId = matchedTheme.id;
+      } else if (themeSource.themeId) {
+        const matchingDefaultTheme = availableThemes.default.find(dt => dt.theme_id === themeSource.themeId);
+        if (matchingDefaultTheme) {
+          initialSelectedThemeType = 'default';
+          initialSelectedThemeId = matchingDefaultTheme.theme_id;
         }
       }
       
-      reset({
+      // If no match found, default to first default theme
+      if (!initialSelectedThemeId && !initialSelectedCustomThemeId && availableThemes.default.length > 0) {
+        initialSelectedThemeType = 'default';
+        initialSelectedThemeId = availableThemes.default[0].theme_id;
+      }
+      
+      const initialSavedThemeId = initialSelectedThemeType === 'custom'
+        ? `custom:${initialSelectedCustomThemeId}`
+        : `default:${initialSelectedThemeId}`;
+
+      savedThemeRef.current = initialSavedThemeId;
+      
+      const initialForm: AppearanceFormData = {
         student_facing_name: chatbot.student_facing_name ?? '',
         branding_logo_url: chatbot.logo_url ?? '',
-        theme: initialThemeConf as ThemeConfig,
+        theme: currentTheme || (availableThemes.default[0]?.theme_config as ThemeConfig) || {},
+        selectedThemeType: initialSelectedThemeType,
         selectedThemeId: initialSelectedThemeId,
+        selectedCustomThemeId: initialSelectedCustomThemeId,
         suggested_questions: chatbot.suggested_questions?.map(q => ({ text: q })) ?? [],
-      });
-    }
-  }, [chatbot, reset]);
+      };
 
-  const handleThemeChange = (themeId: string) => {
-    const selectedPredefined = predefinedThemes.find(t => t.id === themeId);
-    if (selectedPredefined) {
-      const currentStudentFacingName = getValues("student_facing_name");
-      const currentBrandingLogo = getValues("branding_logo_url");
+      reset(initialForm);
+      lastSavedFormRef.current = initialForm;
+    }
+  }, [chatbot, availableThemes, reset]);
+
+  // Watch for changes to detect unsaved customizations
+  useEffect(() => {
+    if (isDirty && currentThemeSource) {
+      setHasUnsavedChanges(true);
+    } else {
+      setHasUnsavedChanges(false);
+    }
+  }, [isDirty, currentThemeSource]);
+
+  const handleThemeChange = (themeIdentifier: string) => {
+    // Parse the theme identifier (format: "default:theme_id" or "custom:custom_id")
+    const [type, id] = themeIdentifier.split(':') as ['default' | 'custom', string];
+    
+    let selectedTheme: DefaultTheme | UserCustomTheme | undefined;
+    
+    if (type === 'default') {
+      selectedTheme = availableThemes?.default.find(t => t.theme_id === id);
+      if (selectedTheme) {
+        const currentAiAvatar = getValues("theme.aiMessageAvatarUrl");
+        const currentUserAvatar = getValues("theme.userMessageAvatarUrl");
+
+        const newThemeConfig: ThemeConfig = {
+          ...selectedTheme.theme_config,
+          aiMessageAvatarUrl: currentAiAvatar ?? selectedTheme.theme_config.aiMessageAvatarUrl,
+          userMessageAvatarUrl: currentUserAvatar ?? selectedTheme.theme_config.userMessageAvatarUrl,
+        };
+        
+        setValue("theme", newThemeConfig, { shouldDirty: true });
+        setValue("selectedThemeType", 'default');
+        setValue("selectedThemeId", selectedTheme.theme_id);
+        setValue("selectedCustomThemeId", '');
+        
+        setCurrentThemeSource({ type: 'default' as const, themeId: selectedTheme.theme_id });
+      }
+    } else if (type === 'custom') {
+      selectedTheme = availableThemes?.custom.find(t => t.id === id);
+      if (selectedTheme) {
       const currentAiAvatar = getValues("theme.aiMessageAvatarUrl");
       const currentUserAvatar = getValues("theme.userMessageAvatarUrl");
 
       const newThemeConfig: ThemeConfig = {
-        ...selectedPredefined.config,
-        aiMessageAvatarUrl: currentAiAvatar ?? selectedPredefined.config.aiMessageAvatarUrl,
-        userMessageAvatarUrl: currentUserAvatar ?? selectedPredefined.config.userMessageAvatarUrl,
+          ...selectedTheme.theme_config,
+          aiMessageAvatarUrl: currentAiAvatar ?? selectedTheme.theme_config.aiMessageAvatarUrl,
+          userMessageAvatarUrl: currentUserAvatar ?? selectedTheme.theme_config.userMessageAvatarUrl,
       };
       
       setValue("theme", newThemeConfig, { shouldDirty: true });
-      setValue("selectedThemeId", selectedPredefined.id);
+        setValue("selectedThemeType", 'custom');
+        setValue("selectedThemeId", '');
+        setValue("selectedCustomThemeId", selectedTheme.id);
+        
+        setCurrentThemeSource({ type: 'custom' as const, customThemeId: selectedTheme.id });
+      }
     }
   };
 
-  const onSubmit: SubmitHandler<AppearanceFormData> = (formData) => {
+  const handleDuplicateTheme = (theme: DefaultTheme | UserCustomTheme, isCustom: boolean) => {
+    const baseName = `${theme.name} Copy`;
+    const source = isCustom 
+      ? { type: 'custom' as const, customThemeId: (theme as UserCustomTheme).id }
+      : { type: 'default' as const, themeId: (theme as DefaultTheme).theme_id };
+    
+    duplicateTheme({
+      source,
+      newName: baseName,
+      newDescription: `Copy of ${theme.name}`
+    });
+  };
+
+  const handleSaveAsNewTheme = () => {
+    if (!newThemeName.trim()) {
+      toast.error('Please enter a theme name');
+      return;
+    }
+
+    const currentThemeConfig = getValues('theme');
+    
+    // Get the actual UUID of the default theme if we're basing on one
+    let basedOnThemeUuid: string | undefined;
+    if (currentThemeSource?.type === 'default' && currentThemeSource.themeId) {
+      const defaultTheme = availableThemes?.default.find(dt => dt.theme_id === currentThemeSource.themeId);
+      basedOnThemeUuid = defaultTheme?.id;
+    }
+    
+    const payload: CreateCustomThemePayload = {
+      name: newThemeName.trim(),
+      description: newThemeDescription.trim() || undefined,
+      theme_config: currentThemeConfig,
+      based_on_default_theme_id: basedOnThemeUuid,
+      is_favorite: false
+    };
+
+    createCustomTheme(payload, {
+      onSuccess: (newTheme) => {
+        setSaveThemeDialogOpen(false);
+        setNewThemeName('');
+        setNewThemeDescription('');
+        setHasUnsavedChanges(false);
+        
+        // Switch to the new custom theme
+        setValue("selectedThemeType", 'custom');
+        setValue("selectedCustomThemeId", newTheme.id);
+        setValue("selectedThemeId", '');
+        setCurrentThemeSource({ type: 'custom' as const, customThemeId: newTheme.id });
+        
+        // Update the chatbot's theme field with the new custom theme
+        const enhancedTheme = createEnhancedThemeConfig(
+          { type: 'custom' as const, customThemeId: newTheme.id },
+          currentThemeConfig,
+          {
+            ai: currentThemeConfig.aiMessageAvatarUrl,
+            user: currentThemeConfig.userMessageAvatarUrl
+          }
+        );
+        
+        const chatbotPayload: UpdateChatbotPayload = {
+          theme: enhancedTheme,
+        };
+        
+        updateSettings(chatbotPayload);
+      }
+    });
+  };
+
+  const handleUpdateExistingTheme = () => {
+    if (currentThemeSource?.type !== 'custom' || !currentThemeSource.customThemeId) return;
+
+    const currentThemeConfig = getValues('theme');
+    
+    updateCustomTheme({
+      theme_config: currentThemeConfig
+    }, {
+      onSuccess: () => {
+        setHasUnsavedChanges(false);
+        
+        // Update the chatbot's theme field with the updated custom theme
+        const enhancedTheme = createEnhancedThemeConfig(
+          { type: 'custom' as const, customThemeId: currentThemeSource.customThemeId },
+          currentThemeConfig,
+          {
+            ai: currentThemeConfig.aiMessageAvatarUrl,
+            user: currentThemeConfig.userMessageAvatarUrl
+          }
+        );
+        
+        const chatbotPayload: UpdateChatbotPayload = {
+          theme: enhancedTheme,
+        };
+        
+        updateSettings(chatbotPayload);
+      }
+    });
+  };
+
+  const handleEditTheme = (theme: UserCustomTheme) => {
+    setEditingTheme(theme);
+    setEditThemeName(theme.name);
+    setEditThemeDescription(theme.description || '');
+    setEditThemeDialogOpen(true);
+  };
+
+  const handleUpdateThemeName = () => {
+    if (!editingTheme || !editThemeName.trim()) {
+      toast.error('Please enter a theme name');
+      return;
+    }
+
+    updateAnyCustomTheme({
+      themeId: editingTheme.id,
+      updates: {
+        name: editThemeName.trim(),
+        description: editThemeDescription.trim() || undefined
+      }
+    }, {
+      onSuccess: () => {
+        setEditThemeDialogOpen(false);
+        setEditingTheme(null);
+        setEditThemeName('');
+        setEditThemeDescription('');
+      }
+    });
+  };
+
+  const onSubmit = useCallback<SubmitHandler<AppearanceFormData>>((formData) => {
     const finalBrandingLogoUrl = (formData.branding_logo_url === "" || formData.branding_logo_url === undefined) 
                                  ? null 
                                  : formData.branding_logo_url;
@@ -172,35 +448,136 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
                                  ? null 
                                  : formData.student_facing_name;
 
-    const cleanedTheme = {
-      ...formData.theme,
-      aiMessageAvatarUrl: (formData.theme.aiMessageAvatarUrl === "" || formData.theme.aiMessageAvatarUrl === undefined) 
-                         ? null 
-                         : formData.theme.aiMessageAvatarUrl,
-      userMessageAvatarUrl: (formData.theme.userMessageAvatarUrl === "" || formData.theme.userMessageAvatarUrl === undefined) 
-                           ? null 
-                           : formData.theme.userMessageAvatarUrl,
-      themeId: formData.selectedThemeId,
-    };
+    // Create enhanced theme config based on current selection
+    const source = formData.selectedThemeType === 'custom' 
+      ? { type: 'custom' as const, customThemeId: formData.selectedCustomThemeId }
+      : { type: 'default' as const, themeId: formData.selectedThemeId };
+
+    const enhancedTheme = createEnhancedThemeConfig(
+      source,
+      formData.theme,
+      {
+        ai: formData.theme.aiMessageAvatarUrl,
+        user: formData.theme.userMessageAvatarUrl
+      }
+    );
 
     const payload: UpdateChatbotPayload = {
       student_facing_name: finalStudentFacingName,
       logo_url: finalBrandingLogoUrl,
-      theme: cleanedTheme,
+      theme: enhancedTheme,
       suggested_questions: formData.suggested_questions?.map(q => q.text),
     };
 
-    updateSettings(payload);
-  };
+    updateSettings(payload, {
+      onSuccess: () => {
+        setHasUnsavedChanges(false);
+        // Persist the newly saved theme
+        const newSavedThemeId = formData.selectedThemeType === 'custom'
+          ? `custom:${formData.selectedCustomThemeId}`
+          : `default:${formData.selectedThemeId}`;
+        savedThemeRef.current = newSavedThemeId;
+        lastSavedFormRef.current = formData;
+      }
+    });
+  }, [updateSettings]);
 
-  // Prepare error messages for cleaner JSX - adjust paths if needed for nested theme errors
+  // Watch for dirty state and update context
+  useEffect(() => {
+    setDirty('appearance', isDirty);
+  }, [isDirty, setDirty]);
+
+  // Register save handler
+  useEffect(() => {
+    registerSaveHandler('appearance', async () => {
+      await handleSubmit(onSubmit)();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerSaveHandler, handleSubmit, onSubmit]);
+
+  // Register reset handler
+  useEffect(() => {
+    registerResetHandler('appearance', async () => {
+      if (lastSavedFormRef.current) {
+        reset(lastSavedFormRef.current);
+      }
+    });
+  }, [registerResetHandler, reset]);
+
+  // Show loading state
+  if (themesLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-muted-foreground">Loading themes...</div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (themesError) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-destructive">Error loading themes: {themesError.message}</div>
+      </div>
+    );
+  }
+
+  // Prepare error messages for cleaner JSX
   const aiAvatarError = errors.theme?.aiMessageAvatarUrl; 
   const userAvatarError = errors.theme?.userMessageAvatarUrl;
 
-  const previewTheme = watchedFormValues.theme || defaultThemeConfig;
+  const previewTheme = watchedFormValues.theme || (availableThemes?.default[0]?.theme_config as ThemeConfig) || {};
   const previewSuggestedQuestions = watchedFormValues.suggested_questions?.map(q => q.text) || (chatbot?.suggested_questions || []);
   const previewBrandingLogoUrl = watchedFormValues.branding_logo_url || chatbot?.logo_url;
   const previewStudentFacingName = watchedFormValues.student_facing_name || chatbot?.student_facing_name;
+
+  // Get current theme value for dropdown
+  const currentThemeValue = watchedFormValues.selectedThemeType === 'custom' 
+    ? `custom:${watchedFormValues.selectedCustomThemeId}`
+    : `default:${watchedFormValues.selectedThemeId}`;
+
+  const allThemeMeta = [
+    ...(availableThemes?.default.map(t => ({
+      id: `default:${t.theme_id}`,
+      name: t.name,
+      colors: [
+        t.theme_config.light?.primaryColor,
+        t.theme_config.light?.bubbleUserBackgroundColor,
+        t.theme_config.light?.bubbleBotBackgroundColor,
+        t.theme_config.light?.inputBackgroundColor,
+      ].filter(Boolean) as string[],
+      isFavorite: false,
+      source: 'default' as const,
+    })) || []),
+    ...(availableThemes?.custom.map(t => ({
+      id: `custom:${t.id}`,
+      name: t.name,
+      isFavorite: t.is_favorite,
+      colors: [
+        t.theme_config.light?.primaryColor,
+        t.theme_config.light?.bubbleUserBackgroundColor,
+        t.theme_config.light?.bubbleBotBackgroundColor,
+        t.theme_config.light?.inputBackgroundColor,
+      ].filter(Boolean) as string[],
+      source: 'custom' as const,
+    })) || [])
+  ];
+
+  const featuredThemes = allThemeMeta.filter(m => m.isFavorite);
+  const customThemes = allThemeMeta.filter(m => m.source === 'custom');
+  const defaultThemes = allThemeMeta.filter(m => m.source === 'default');
+
+  const savedThemeMeta = allThemeMeta.find(m => m.id === savedThemeRef.current);
+
+  // Build quick-card list: always show saved theme first. If no unsaved changes, saved === current.
+  const metaCandidates = [
+    ...(savedThemeMeta ? [savedThemeMeta] : []),
+    ...featuredThemes,
+    ...customThemes,
+    ...defaultThemes,
+  ];
+
+  const metaForCard = metaCandidates.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx).slice(0,4);
 
   return (
     <div className="flex flex-col md:flex-row gap-8 max-w-7xl">
@@ -215,63 +592,146 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Theme Section */}
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-indigo-100 dark:bg-indigo-900 rounded flex items-center justify-center text-sm">
-                🎨
-              </div>
-              <h3 className="text-lg font-medium text-foreground">Theme</h3>
-            </div>
+          <FieldsetBlock title="Theme" icon={<Palette className="h-4 w-4" />} index={0}>
             <p className="text-sm text-muted-foreground mb-6">
               Choose a visual theme for your chatbot (light and dark modes will be configured within)
             </p>
             
             <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
               <Label className="text-sm font-medium">Select Theme</Label>
-              <Controller
-                name="selectedThemeId"
-                control={control}
-                render={({ field }) => {
-                  // Ensure we always have a valid value
-                  const currentValue = field.value && predefinedThemes.find(t => t.id === field.value) 
-                    ? field.value 
-                    : predefinedThemes[0].id;
-                  
-                  return (
-                    <Select 
-                      onValueChange={(value) => {
-                        if (value && predefinedThemes.find(t => t.id === value)) {
-                          field.onChange(value); 
-                          handleThemeChange(value);
+                  {savedThemeMeta && (
+                    <span className="text-xs text-muted-foreground mt-1">
+                      Active theme: {savedThemeMeta.name}
+                    </span>
+                  )}
+                  {savedThemeMeta && currentThemeValue !== savedThemeRef.current && (
+                    <span className="text-[10px] font-medium text-yellow-600 mt-0.5">(Unsaved changes)</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDrawerOpen(true)}
+                    className="text-xs"
+                  >
+                    <Palette className="w-3 h-3 mr-1" />
+                    Customize
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                {metaForCard.map(meta => (
+                  <ThemeCard
+                    key={meta.id}
+                    name={meta.name}
+                    colors={meta.colors.length ? meta.colors : ['#ddd']}
+                    backgroundColor="#f9f9f9"
+                    selected={currentThemeValue === meta.id}
+                    onSelect={() => handleThemeChange(meta.id)}
+                    isFavorite={!!meta.isFavorite}
+                  />
+                ))}
+                      </div>
+
+              {/* Toolbar: Browse + Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <ThemePopover
+                  trigger={<Button variant="outline" size="sm">Browse all themes</Button>}
+                  themes={allThemeMeta}
+                  value={currentThemeValue}
+                  onSelect={handleThemeChange}
+              />
+
+              {/* Theme Actions */}
+                <div className="flex items-center gap-2 justify-end">
+                {currentThemeSource && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const theme = currentThemeSource.type === 'custom' 
+                          ? availableThemes?.custom.find(t => t.id === currentThemeSource.customThemeId)
+                          : availableThemes?.default.find(t => t.theme_id === currentThemeSource.themeId);
+                        if (theme) {
+                          handleDuplicateTheme(theme, currentThemeSource.type === 'custom');
                         }
                       }}
-                      value={currentValue}
+                      disabled={isDuplicatingTheme}
                     >
-                      <SelectTrigger className="w-full md:w-[280px]">
-                        <SelectValue placeholder="Select a theme" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {predefinedThemes.map(theme => (
-                          <SelectItem key={theme.id} value={theme.id}>{theme.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  );
-                }}
-              />
+                      <Copy className="w-3 h-3 mr-1" />
+                      Duplicate
+                    </Button>
+                    
+                    {currentThemeSource.type === 'custom' && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const theme = availableThemes?.custom.find(t => t.id === currentThemeSource.customThemeId);
+                            if (theme) {
+                              handleEditTheme(theme);
+                            }
+                          }}
+                        >
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const theme = availableThemes?.custom.find(t => t.id === currentThemeSource.customThemeId);
+                            if (theme) {
+                              toggleFavorite(theme.id);
+                            }
+                          }}
+                        >
+                          <Star className={`w-3 h-3 mr-1 ${
+                            availableThemes?.custom.find(t => t.id === currentThemeSource.customThemeId)?.is_favorite 
+                              ? 'fill-yellow-400 text-yellow-400' 
+                              : ''
+                          }`} />
+                          Favorite
+                        </Button>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (currentThemeSource.customThemeId) {
+                              deleteTheme(currentThemeSource.customThemeId);
+                            }
+                          }}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+                              </div>
+          </FieldsetBlock>
 
           <Separator />
 
           {/* Branding & Naming Section */}
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-orange-100 dark:bg-orange-900 rounded flex items-center justify-center text-sm">
-                🏷️
-              </div>
-              <h3 className="text-lg font-medium text-foreground">Branding & Naming</h3>
-            </div>
+          <FieldsetBlock title="Branding & Naming" icon={<BadgeDollarSign className="h-4 w-4" />} index={1}>
             <p className="text-sm text-muted-foreground mb-6">
               Define your chatbot's public identity
             </p>
@@ -281,10 +741,14 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
                 <Label htmlFor="student_facing_name" className="text-sm font-medium">Chatbot Display Name</Label>
                 <Input 
                   id="student_facing_name" 
-                  {...register("student_facing_name")} 
+                  {...register("student_facing_name")}
                   className="mt-2"
                   placeholder="e.g., Helpful Course Assistant" 
+                  maxLength={50}
                 />
+                <p className="text-xs text-muted-foreground mt-1 text-right">
+                  {(watchedFormValues.student_facing_name || '').length} / 50
+                </p>
                 {errors.student_facing_name && <p className="mt-1 text-xs text-destructive">{errors.student_facing_name.message}</p>}
               </div>
 
@@ -308,18 +772,12 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
             <p className="mt-2 text-xs text-muted-foreground">
               The display name is shown in the chat header. The branding logo can be used in shared pages or embeds.
             </p>
-          </div>
+          </FieldsetBlock>
 
           <Separator />
 
           {/* Chat Interface Avatars */}
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-cyan-100 dark:bg-cyan-900 rounded flex items-center justify-center text-sm">
-                👤
-              </div>
-              <h3 className="text-lg font-medium text-foreground">Chat Interface Avatars</h3>
-            </div>
+          <FieldsetBlock title="Chat Interface Avatars" icon={<UserCircle2 className="h-4 w-4" />} index={2}>
             <p className="text-sm text-muted-foreground mb-6">
               Customize the avatars shown next to messages in the chat window (applies to all theme modes)
             </p>
@@ -336,6 +794,7 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
                       onChange={field.onChange}
                       presets={aiMessageAvatarPresets}
                       pickerId="aiAvatar"
+                      round
                     />
                   )}
                 />
@@ -355,6 +814,7 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
                       onChange={field.onChange}
                       presets={userMessageAvatarPresets}
                       pickerId="userAvatar"
+                      round
                     />
                   )}
                 />
@@ -363,41 +823,49 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
                 )}
               </div>
             </div>
-          </div>
+          </FieldsetBlock>
 
           <Separator />
 
           {/* Suggested Questions */}
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-6 w-6 bg-green-100 dark:bg-green-900 rounded flex items-center justify-center text-sm">
-                💭
-              </div>
-              <h3 className="text-lg font-medium text-foreground">Suggested Messages</h3>
-            </div>
+          <FieldsetBlock title={`Suggested Messages (${fields.length} / 6)`} icon={<MessageSquareText className="h-4 w-4" />} index={3}>
             <p className="text-sm text-muted-foreground mb-6">
               Offer users quick questions to start the conversation
             </p>
             
             <div className="space-y-4">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex items-center space-x-2">
-                  <Input
-                    {...register(`suggested_questions.${index}.text` as const)}
-                    defaultValue={field.text}
-                    className="flex-grow"
-                    placeholder={`Suggested message ${index + 1}`}
-                  />
-                  <Button type="button" variant="outline" onClick={() => remove(index)} className="text-destructive hover:bg-destructive/10 border-destructive/50">
-                    Remove
-                  </Button>
-                </div>
-              ))}
+              {/* Drag-and-drop context */}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={({ active, over }) => {
+                  if (over && active.id !== over.id) {
+                    const oldIndex = fields.findIndex(f => f.id === active.id);
+                    const newIndex = fields.findIndex(f => f.id === over.id);
+                    move(oldIndex, newIndex);
+                  }
+                }}
+              >
+                <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                  {fields.map((field, index) => (
+                    <SortableSuggestedItem
+                      key={field.id}
+                      id={field.id}
+                      index={index}
+                      formRegister={register}
+                      remove={() => remove(index)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => append({ text: "" })} 
+                onClick={() => {
+                  if (fields.length < 6) append({ text: "" });
+                }} 
                 className="border-dashed"
+                disabled={fields.length >= 6}
               >
                 + Add Suggested Message
               </Button>
@@ -410,22 +878,114 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
                 return null;
               })}
             </div>
-          </div>
+          </FieldsetBlock>
 
           <Separator />
-
-          <div className="flex justify-end pt-4">
-            <Button 
-              type="submit" 
-              disabled={isUpdating || !isDirty} 
-              className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
-              size="lg"
-            >
-              {isUpdating ? 'Saving...' : 'Save Configuration'}
-            </Button>
-          </div>
         </form>
       </div>
+
+      {/* Edit Theme Dialog */}
+      <Dialog open={editThemeDialogOpen} onOpenChange={setEditThemeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Theme</DialogTitle>
+            <DialogDescription>
+              Update the name and description of your custom theme.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-theme-name">Theme Name</Label>
+              <Input
+                id="edit-theme-name"
+                value={editThemeName}
+                onChange={(e) => setEditThemeName(e.target.value)}
+                placeholder="My Custom Theme"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-theme-description">Description (Optional)</Label>
+              <Textarea
+                id="edit-theme-description"
+                value={editThemeDescription}
+                onChange={(e) => setEditThemeDescription(e.target.value)}
+                placeholder="A brief description of this theme..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditThemeDialogOpen(false);
+                setEditingTheme(null);
+                setEditThemeName('');
+                setEditThemeDescription('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateThemeName}
+              disabled={isUpdatingAnyTheme}
+            >
+              {isUpdatingAnyTheme ? 'Updating...' : 'Update Theme'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save Custom Theme Dialog (moved from deprecated section) */}
+      <Dialog open={saveThemeDialogOpen} onOpenChange={setSaveThemeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Custom Theme</DialogTitle>
+            <DialogDescription>
+              Create a new custom theme with your current settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-theme-name">Theme Name</Label>
+              <Input
+                id="new-theme-name"
+                value={newThemeName}
+                onChange={(e) => setNewThemeName(e.target.value)}
+                placeholder="My Custom Theme"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-theme-description">Description (Optional)</Label>
+              <Textarea
+                id="new-theme-description"
+                value={newThemeDescription}
+                onChange={(e) => setNewThemeDescription(e.target.value)}
+                placeholder="A brief description of this theme..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSaveThemeDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAsNewTheme}
+              disabled={isCreatingTheme}
+            >
+              {isCreatingTheme ? 'Creating...' : 'Create Theme'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Right Side: Chat Preview (Sticky) */}
       <aside className="md:w-1/3 lg:w-2/5 sticky top-24 h-[calc(100vh-12rem)]">
@@ -467,6 +1027,73 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
           </div>
         </div>
       </aside>
+
+      {/* Theme Customization Drawer */}
+      <ThemeCustomizationDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        mode={drawerMode}
+        setMode={setDrawerMode}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isCustomTheme={currentThemeSource?.type === 'custom'}
+        onSaveAsNew={() => setSaveThemeDialogOpen(true)}
+        onUpdateExisting={handleUpdateExistingTheme}
+        isCreatingTheme={isCreatingTheme}
+        isUpdatingTheme={isUpdatingTheme}
+        onCancel={() => {
+          if (lastSavedFormRef.current) {
+            reset(lastSavedFormRef.current);
+            setDrawerOpen(false);
+            setHasUnsavedChanges(false);
+          } else {
+            setDrawerOpen(false);
+          }
+        }}
+      >
+        <div className="space-y-8">
+          <TypographyControls control={control} />
+          <ColorControls control={control} mode={drawerMode} />
+        </div>
+      </ThemeCustomizationDrawer>
+    </div>
+  );
+}
+
+// Sortable item component for suggested messages
+interface SortableItemProps {
+  id: string;
+  index: number;
+  formRegister: UseFormRegister<AppearanceFormData>;
+  remove: () => void;
+}
+
+function SortableSuggestedItem({ id, index, formRegister, remove }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center space-x-2 py-1">
+      <button type="button" className="cursor-grab text-muted-foreground" {...attributes} {...listeners}>
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <Input
+        {...formRegister(`suggested_questions.${index}.text` as const)}
+        className="flex-grow"
+        placeholder={`Suggested message ${index + 1}`}
+      />
+      <Button type="button" variant="ghost" size="icon" onClick={remove} className="text-destructive hover:bg-destructive/20">
+        <Trash2 className="w-4 h-4" />
+      </Button>
     </div>
   );
 } 

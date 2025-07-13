@@ -1,0 +1,31 @@
+{
+  "name": "get_joke",
+  "display_name": "Get Random Joke",
+  "description": "Get a random programming joke to lighten the mood",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "get_joke",
+    "description": "Fetch a random programming joke to lighten the mood",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "description": "Type of joke (optional)"
+        }
+      },
+      "required": []
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "https://v2.jokeapi.dev/joke/Programming",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

@@ -1,0 +1,51 @@
+{
+  "name": "weather_forecast",
+  "display_name": "Weather Forecast",
+  "description": "Get weather forecast with specific units and forecast type",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "weather_forecast",
+    "description": "Get weather forecast for a location with customizable options",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "City or location name"
+        },
+        "units": {
+          "type": "string",
+          "enum": ["metric", "imperial", "kelvin"],
+          "description": "Temperature units - metric (Celsius), imperial (Fahrenheit), or kelvin"
+        },
+        "forecast_type": {
+          "type": "string", 
+          "enum": ["current", "daily", "hourly", "weekly"],
+          "description": "Type of forecast to retrieve"
+        },
+        "language": {
+          "type": "string",
+          "enum": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh"],
+          "description": "Response language code"
+        },
+        "include_details": {
+          "type": "boolean",
+          "description": "Include detailed weather information"
+        }
+      },
+      "required": ["location", "units", "forecast_type"]
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "https://wttr.in/",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json",
+        "User-Agent": "curl"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

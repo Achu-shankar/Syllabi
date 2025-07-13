@@ -509,7 +509,7 @@ const SourceCitationDisplay: React.FC<SourceCitationDisplayProps> = ({
           style={{
             background: 'var(--chat-chat-window-background-color, white)',
             borderRadius: '12px',
-            color: 'var(--chat-sidebar-text-color, rgb(75, 85, 99))'
+            color: 'var(--chat-primary-color, rgb(75, 85, 99))'
           }}
         > 
           {/* Header */}
@@ -562,7 +562,7 @@ const SourceCitationDisplay: React.FC<SourceCitationDisplayProps> = ({
                       <div className="flex-1 min-w-0">
                         <h4 
                           className="text-sm font-medium truncate"
-                          style={{ color: 'var(--chat-sidebar-text-color, rgb(75, 85, 99))' }}
+                          style={{ color: 'var(--chat-primary-color, rgb(75, 85, 99))' }}
                         >
                             {document?.file_name || 'Unknown Document'}
                           </h4>

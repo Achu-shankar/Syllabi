@@ -1,0 +1,26 @@
+{
+  "name": "generate_uuid",
+  "display_name": "Generate UUID",
+  "description": "Generate a universally unique identifier",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "generate_uuid",
+    "description": "Generate a universally unique identifier (UUID)",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "https://httpbin.org/uuid",
+      "method": "GET",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 

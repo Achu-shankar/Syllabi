@@ -39,6 +39,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { RainbowButton } from '@/components/magicui/rainbow-button';
+import { GlowEffect } from '@/components/ui/glow-effect';
 
 export default function ChatbotLibraryPage() {
   const params = useParams();
@@ -212,9 +214,9 @@ export default function ChatbotLibraryPage() {
 
   if (isLoadingUserId) {
   return (
-      <div className="h-full flex bg-gray-50">
+      <div className="h-full flex bg-background">
         {/* Left sidebar skeleton */}
-        <div className="w-80 bg-white border-r border-gray-200 p-4 space-y-4 transition-all duration-300 ease-in-out">
+        <div className="w-80 bg-card border-r border-border p-4 space-y-4 transition-all duration-300 ease-in-out">
           <div className="flex items-center justify-between">
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-6 w-6" />
@@ -232,7 +234,7 @@ export default function ChatbotLibraryPage() {
         {/* Main content skeleton */}
         <div className="flex-1 flex flex-col">
           {/* Header skeleton */}
-          <div className="bg-white border-b border-gray-200 px-6 py-6">
+          <div className="bg-card border-b border-border px-6 py-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -255,8 +257,8 @@ export default function ChatbotLibraryPage() {
           </div>
           
           {/* Content skeleton */}
-          <div className="flex-1 px-6 py-6 bg-gray-50">
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex-1 px-6 py-6 bg-background">
+            <div className="bg-card rounded-lg border border-border p-6">
               <div className="space-y-4">
                 <Skeleton className="h-6 w-48" />
                 <Skeleton className="h-96 w-full" />
@@ -393,7 +395,7 @@ export default function ChatbotLibraryPage() {
     >
       <div className="h-full border-t flex">
         {/* Left Sidebar - Folder List */}
-        <div className={`bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 ease-in-out ${
+        <div className={`bg-card border-r border-border flex-shrink-0 transition-all duration-300 ease-in-out ${
           isSidebarCollapsed ? 'w-0 overflow-hidden' : 'w-80'
         }`}>
           <FolderList
@@ -417,16 +419,16 @@ export default function ChatbotLibraryPage() {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header with Breadcrumbs and Search */}
-          <div className="bg-white border-b border-gray-200">
+          <div className="bg-card border-b border-border">
             {/* Breadcrumbs Row */}
-            <div className="px-6 pt-4 pb-3">
-              <div className="flex items-center text-sm text-gray-500">
+            <div className="px-6 py-4">
+              <div className="flex items-center text-sm text-muted-foreground">
                 {/* Sidebar Toggle Button */}
                 <Button
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                   variant="ghost"
                   size="sm"
-                  className="mr-4 h-8 w-8 p-0 hover:bg-gray-100"
+                  className="mr-4 h-8 w-8 p-0 hover:bg-secondary"
                   title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
                 >
                   {isSidebarCollapsed ? (
@@ -448,16 +450,16 @@ export default function ChatbotLibraryPage() {
                           // since they're single-level views
                         }
                       }}
-                      className="hover:text-gray-700 transition-colors"
+                      className="hover:text-foreground transition-colors"
                     >
                       {crumb.name}
                     </button>
                     {index < array.length - 1 && (
-                      <span className="mx-2 text-gray-300">/</span>
+                      <span className="mx-2 text-border">/</span>
                     )}
                   </React.Fragment>
                 ))}
-                <span className="ml-auto text-sm text-gray-500">
+                <span className="ml-auto text-sm text-muted-foreground">
                   {filteredContent.length} {filteredContent.length === 1 ? 'item' : 'items'}
                   {hasActiveFilters && ` (filtered from ${currentContent.length})`}
                 </span>
@@ -465,17 +467,27 @@ export default function ChatbotLibraryPage() {
             </div>
 
             {/* Actions and Search Row */}
-            <div className="px-6 pb-4">
+            <div className="px-6 py-4">
               <div className="flex items-center justify-between gap-4">
                 {/* Left side - Action buttons */}
                 <div className="flex gap-3">
-                  <Button
+                  <div className="relative group">
+                    <GlowEffect
+                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      colors={['#9c40ff', '#ffaa40', '#3357FF']}
+                      mode='rotate'
+                      blur='strong'
+                      duration={5}
+                      scale={1.1}
+                    />
+                    <RainbowButton
                     onClick={() => setIsFileUploadModalOpen(true)}
                     className="flex items-center gap-2"
                   >
                     <Upload className="h-4 w-4" />
                     Upload Files
-        </Button>
+                    </RainbowButton>
+                  </div>
                   <Button
                     onClick={() => setIsUrlInputModalOpen(true)}
                     variant="outline"
@@ -490,17 +502,17 @@ export default function ChatbotLibraryPage() {
                 <div className="flex items-center gap-4">
                   {/* Search Input */}
                   <div className="relative w-80">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search content..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-10 h-9 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      className="pl-10 pr-10 h-9 border-border focus:border-primary focus:ring-primary"
                     />
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -514,7 +526,7 @@ export default function ChatbotLibraryPage() {
                         <Filter className="h-4 w-4" />
                         Filters
                         {hasActiveFilters && (
-                          <span className="ml-1 px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                          <span className="ml-1 px-2 py-1 bg-secondary text-secondary-foreground text-xs rounded-full">
                             Active
                           </span>
                         )}
@@ -638,15 +650,15 @@ export default function ChatbotLibraryPage() {
         {/* Drag Overlay */}
         <DragOverlay>
           {activeId && draggedContent ? (
-            <div className="bg-white shadow-lg rounded-md border border-gray-200 p-3 opacity-90 max-w-[300px]">
+            <div className="bg-card shadow-lg rounded-md border border-border p-3 opacity-90 max-w-[300px]">
               <div className="flex items-center gap-3">
-                <div className="w-4 h-4 bg-blue-500 rounded flex-shrink-0"></div>
+                <div className="w-4 h-4 bg-primary rounded flex-shrink-0"></div>
                 <span className="text-sm font-medium truncate">
                   {draggedContent.title || draggedContent.file_name || draggedContent.source_url || 'Untitled'}
                 </span>
                 {/* Show count if multiple items are being dragged */}
                 {dragData?.isMultipleSelection && dragData?.selectedCount > 1 && (
-                  <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full ml-auto flex-shrink-0">
+                  <div className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full ml-auto flex-shrink-0">
                     {dragData.selectedCount}
                   </div>
                 )}

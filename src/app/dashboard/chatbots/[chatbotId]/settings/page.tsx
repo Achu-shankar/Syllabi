@@ -13,11 +13,88 @@ import { useUpdateChatbotVisibility } from '../hooks/useChatbotSharing';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { ChatbotVisibility } from '@/app/dashboard/libs/queries';
+import { RainbowButton } from '@/components/magicui/rainbow-button';
+import { Badge } from '@/components/ui/badge';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 // Import our section components
 import { GeneralSettingsSection } from './components/GeneralSettingsSection';
 import { AppearanceSettingsSection } from './components/AppearanceSettingsSection';
 import { BehaviorSettingsSection } from './components/BehaviorSettingsSection';
+import { SettingsDirtyProvider, useSettingsDirty } from './components/SettingsDirtyContext';
+
+function SettingsHeaderSaveButton() {
+  const { isAnyDirty, saveAll, resetAll } = useSettingsDirty();
+  const [saving, setSaving] = React.useState(false);
+  const [justSaved, setJustSaved] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveAll();
+      toast.success('Settings saved');
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRevert = async () => {
+    await resetAll();
+    setConfirmOpen(false);
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <AnimatePresence initial={false} mode="wait">
+        {isAnyDirty ? (
+          <motion.div
+            key="save-buttons"
+            initial={{ opacity: 0, scale: 0.9, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -4 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="flex items-center gap-2"
+          >
+            <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(true)}>Revert</Button>
+            <RainbowButton size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </RainbowButton>
+          </motion.div>
+        ) : (
+          justSaved && (
+            <motion.div
+              key="saved-badge"
+              initial={{ opacity: 0, scale: 0.9, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: -4 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+            >
+              <Badge variant="secondary">Saved ✓</Badge>
+            </motion.div>
+          )
+        )}
+      </AnimatePresence>
+
+      {/* Revert confirm dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Discard all unsaved changes?</DialogTitle>
+            <DialogDescription>This will revert settings in every section to the last saved state.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRevert}>Revert</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 export default function UnifiedSettingsPage() {
   const params = useParams();
@@ -129,6 +206,7 @@ export default function UnifiedSettingsPage() {
   }
 
   return (
+    <SettingsDirtyProvider>
     <div className="min-h-screen bg-gray-50/50">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Sticky Combined Header */}
@@ -136,13 +214,12 @@ export default function UnifiedSettingsPage() {
           <div className="max-w-7xl mx-auto px-6 py-3">
             {/* Header Info */}
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 mb-0.5">Settings</h1>
-                <p className="text-sm text-gray-600">
-              Configure your chatbot's behavior, appearance, and general settings
-            </p>
+                <div className="flex flex-col">
+                  <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+                  <p className="text-sm text-muted-foreground">Configure your chatbot's behavior, appearance, and general settings</p>
           </div>
-
+                <div className="flex items-center gap-3">
+                  <SettingsHeaderSaveButton />
               {/* Visibility Toggle */}
               {!isLoadingDetails && chatbot && visibilityDisplay && (
                 <Popover open={visibilityPopoverOpen} onOpenChange={setVisibilityPopoverOpen}>
@@ -202,27 +279,28 @@ export default function UnifiedSettingsPage() {
                   </PopoverContent>
                 </Popover>
               )}
+                </div>
             </div>
 
               {/* Tab Navigation */}
             <TabsList className="h-auto p-0 bg-transparent w-full justify-start">
                   <TabsTrigger 
                     value="general" 
-                className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg border border-transparent data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all duration-200 mr-2 text-sm"
+                  className="relative flex items-center gap-2.5 px-4 py-1.5 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-gradient-to-r after:from-purple-500 after:via-pink-500 after:to-yellow-500 data-[state=active]:after:scale-x-100 after:transition-transform after:origin-left mr-4"
                   >
                     <Settings className="h-4 w-4" />
                     <span>General</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="appearance" 
-                className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg border border-transparent data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all duration-200 mr-2 text-sm"
+                  className="relative flex items-center gap-2.5 px-4 py-1.5 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-gradient-to-r after:from-purple-500 after:via-pink-500 after:to-yellow-500 data-[state=active]:after:scale-x-100 after:transition-transform after:origin-left mr-4"
                   >
                     <Palette className="h-4 w-4" />
                     <span>Appearance</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="behavior" 
-                className="flex items-center gap-2.5 px-5 py-2.5 rounded-lg border border-transparent data-[state=active]:bg-gray-900 data-[state=active]:text-white data-[state=active]:border-gray-900 bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50 font-medium transition-all duration-200 text-sm"
+                  className="relative flex items-center gap-2.5 px-4 py-1.5 text-sm font-medium text-muted-foreground data-[state=active]:text-foreground after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:bg-gradient-to-r after:from-purple-500 after:via-pink-500 after:to-yellow-500 data-[state=active]:after:scale-x-100 after:transition-transform after:origin-left mr-4"
                   >
                     <Brain className="h-4 w-4" />
                     <span>Behavior</span>
@@ -259,5 +337,6 @@ export default function UnifiedSettingsPage() {
         </div>
       </Tabs>
     </div>
+    </SettingsDirtyProvider>
   );
 } 

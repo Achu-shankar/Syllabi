@@ -1,0 +1,68 @@
+{
+  "name": "task_manager",
+  "display_name": "Task Manager",
+  "description": "Create and manage tasks with priority levels, categories, and status tracking",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "task_manager",
+    "description": "Create and manage tasks with comprehensive categorization and priority system",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "task_title": {
+          "type": "string",
+          "description": "Title of the task to create or update"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "urgent", "critical"],
+          "description": "Task priority level from low to critical"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["work", "personal", "health", "education", "finance", "shopping", "travel"],
+          "description": "Task category for organization"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["todo", "in_progress", "review", "blocked", "completed", "cancelled"],
+          "description": "Current status of the task"
+        },
+        "department": {
+          "type": "string",
+          "enum": ["engineering", "marketing", "sales", "hr", "finance", "operations"],
+          "description": "Department responsible for the task (work tasks only)"
+        },
+        "estimated_hours": {
+          "type": "number",
+          "description": "Estimated hours to complete the task"
+        },
+        "due_date": {
+          "type": "string",
+          "description": "Due date in YYYY-MM-DD format"
+        },
+        "assignee_email": {
+          "type": "string",
+          "description": "Email of the person assigned to this task"
+        },
+        "send_notifications": {
+          "type": "boolean",
+          "description": "Whether to send email notifications for status changes"
+        }
+      },
+      "required": ["task_title", "priority", "category", "status"]
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "http://localhost:8000/task-manager",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-API-Key": "your-task-manager-api-key"
+      },
+      "timeout_ms": 15000
+    }
+  },
+  "is_active": true
+} 

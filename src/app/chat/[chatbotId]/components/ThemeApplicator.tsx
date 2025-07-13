@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useChatTheme } from '../../contexts/ChatbotThemeContext';
 import { useChatbotTheme } from '../../contexts/ChatbotContext';
-import { ThemeColors } from '../../contexts/ChatbotContext';
+import { ThemeColors, EnhancedThemeConfig } from '../../contexts/ChatbotContext';
 
 /**
  * ThemeApplicator component that applies chatbot theme colors as CSS variables
@@ -22,7 +22,9 @@ export function ThemeApplicator() {
     // Use the resolved theme from our independent chat theme context
     const isDark = resolvedTheme === 'dark';
     
-    const colors: ThemeColors = isDark ? chatbotTheme.dark : chatbotTheme.light;
+    // Extract the actual theme config from the enhanced format
+    const themeConfig = chatbotTheme.config;
+    const colors: ThemeColors = isDark ? themeConfig.dark : themeConfig.light;
 
     // Apply smooth transitions for theme changes
     const applyTransitions = () => {
@@ -72,16 +74,16 @@ export function ThemeApplicator() {
     }
 
     // Apply font family if specified
-    if (chatbotTheme.fontFamily) {
-      root.style.setProperty('--chat-font-family', chatbotTheme.fontFamily);
+    if (themeConfig.fontFamily) {
+      root.style.setProperty('--chat-font-family', themeConfig.fontFamily);
     }
 
     // Apply avatar URLs if specified
-    if (chatbotTheme.aiMessageAvatarUrl) {
-      root.style.setProperty('--chat-ai-avatar-url', `url(${chatbotTheme.aiMessageAvatarUrl})`);
+    if (themeConfig.aiMessageAvatarUrl) {
+      root.style.setProperty('--chat-ai-avatar-url', `url(${themeConfig.aiMessageAvatarUrl})`);
     }
-    if (chatbotTheme.userMessageAvatarUrl) {
-      root.style.setProperty('--chat-user-avatar-url', `url(${chatbotTheme.userMessageAvatarUrl})`);
+    if (themeConfig.userMessageAvatarUrl) {
+      root.style.setProperty('--chat-user-avatar-url', `url(${themeConfig.userMessageAvatarUrl})`);
     }
 
     // Apply theme indicator for debugging (can be removed in production)

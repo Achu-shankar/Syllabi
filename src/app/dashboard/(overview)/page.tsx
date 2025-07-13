@@ -1,78 +1,20 @@
 "use client"; // If we plan to have client-side interactions like fetching data, forms etc.
 
-import React, { useState } from 'react'; // Added useState for dialog
+import React, { useState, useMemo } from 'react'; // Added useMemo for filtering
 import Link from 'next/link'; // Added for future navigation
 import { Button } from "@/components/ui/button";
-import { PlusCircle, MoreHorizontal, Bot, BookOpen, MessageSquare, Feather, Brain, Zap, Settings2, Palette, Edit3, Trash2, FileText, ExternalLink, Link2, Copy } from 'lucide-react'; // Added ExternalLink icon
+import { Input } from "@/components/ui/input"; // Added Input component
+import { RainbowButton } from "@/components/magicui/rainbow-button";
+import { PlusCircle } from '@phosphor-icons/react/dist/csr/PlusCircle';
+import { Robot } from '@phosphor-icons/react/dist/csr/Robot';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/csr/MagnifyingGlass';
 import { useFetchChatbots } from './hooks/useFetchChatbots'; // Import the custom hook
 import { CreateChatbotDialog } from './components/create-chatbot-dialog'; // Import the dialog
 import { EditChatbotDialog } from './components/edit-chatbot-dialog'; // Import Edit Dialog
 import { DeleteConfirmationDialog } from './components/delete-confirmation-dialog'; // Import Delete Dialog
 import { ChatbotCardSkeleton } from './components/chatbot-card-skeleton'; // Import Skeleton
+import { ChatbotCards } from './components/chatbot-cards'; // Import the new ChatbotCards component
 import { Chatbot } from '@/app/dashboard/libs/queries'; // Import Chatbot type
-import randomColor from 'randomcolor'; // Import randomcolor
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-// --- Helper Functions for Unique Card Styles ---
-const iconList = [Bot, BookOpen, MessageSquare, Feather, Brain, Zap, Settings2, Palette, FileText];
-
-const getDeterministicIndex = (id: string, arrayLength: number): number => {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    const char = id.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0; // Convert to 32bit integer
-  }
-  return Math.abs(hash) % arrayLength;
-};
-
-const getDeterministicGradient = (id: string): string => {
-  const color1 = randomColor({
-    seed: id,
-    luminosity: 'light',
-    format: 'hex'
-  });
-
-  // Attempt to get a more distinct second color
-  // We can try a different luminosity or use a different seed component for the hue
-  const color2SeedBase = id + "-pair";
-  let color2 = randomColor({
-    seed: color2SeedBase,
-    luminosity: 'bright', // Try 'bright' for more vibrancy for the second color
-    // To make it more different, we can try to pick a hue that's somewhat offset.
-    // One simple way: generate a random hue with a different seed.
-    hue: randomColor({ seed: id + "-hue-offset", luminosity: 'random', format: 'hex' }), 
-    format: 'hex'
-  });
-
-  // Basic check to avoid identical colors if the above still results in one
-  let attempts = 0;
-  while (color1 === color2 && attempts < 5) {
-    color2 = randomColor({
-      seed: color2SeedBase + `-${attempts}`,
-      luminosity: 'bright',
-      hue: randomColor({ seed: id + `-hue-offset-${attempts}`, luminosity: 'random', format: 'hex' }),
-      format: 'hex'
-    });
-    attempts++;
-  }
-  // If still same after attempts, it's a rare case, but we proceed.
-
-  return `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`;
-};
-
-const GetDeterministicIcon = ({ id }: { id: string }) => {
-  const IconComponent = iconList[getDeterministicIndex(id, iconList.length)];
-  return <IconComponent className="h-8 w-8 text-gray-700 dark:text-gray-300" />;
-};
-// --- End Helper Functions ---
 
 export default function DashboardOverviewPage() {
   const {
@@ -86,6 +28,21 @@ export default function DashboardOverviewPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedChatbot, setSelectedChatbot] = useState<Chatbot | null>(null);
+  const [searchQuery, setSearchQuery] = useState(''); // Added search state
+
+  // Filter chatbots based on search query
+  const filteredChatbots = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return chatbots;
+    }
+    
+    const query = searchQuery.toLowerCase().trim();
+    return chatbots.filter((chatbot) => {
+      const nameMatch = chatbot.name.toLowerCase().includes(query);
+      const studentFacingNameMatch = chatbot.student_facing_name?.toLowerCase().includes(query);
+      return nameMatch || studentFacingNameMatch;
+    });
+  }, [chatbots, searchQuery]);
 
   const handleCreateNewChatbotClick = () => {
     setIsCreateDialogOpen(true);
@@ -101,25 +58,38 @@ export default function DashboardOverviewPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      // You could add a toast notification here for better UX
-      alert("Link copied to clipboard!");
-    }).catch(err => {
-      console.error("Failed to copy: ", err);
-      alert("Failed to copy to clipboard.");
-    });
-  };
-
-    return (
+  return (
     <>
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        <div className="flex justify-between items-center mb-8"> {/* Increased margin */}
-          <h1 className="text-3xl font-bold">Your Chatbots</h1> {/* Bolder title */}
-          <Button onClick={handleCreateNewChatbotClick} size="lg"> {/* Larger button */}
-            <PlusCircle className="mr-2 h-5 w-5" /> Create New Chatbot
-          </Button>
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-2 ">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Your Chatbots</h1>
+          <div className="flex items-center gap-4">
+            {!isLoading && !isError && chatbots.length > 0 && (
+              <div className="relative w-72">
+                <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" weight="bold" />
+                <Input
+                  type="text"
+                  placeholder="Search chatbots..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            )}
+            <RainbowButton onClick={handleCreateNewChatbotClick} size="lg">
+              <PlusCircle className="mr-2 h-5 w-5" weight="bold" /> Create New Chatbot
+            </RainbowButton>
+          </div>
         </div>
+
+        {/* Search Results Text */}
+        {!isLoading && !isError && chatbots.length > 0 && searchQuery.trim() && (
+          <div className="mb-6 -mt-4">
+            <p className="text-sm text-muted-foreground">
+              Found {filteredChatbots.length} chatbot{filteredChatbots.length !== 1 ? 's' : ''} matching "{searchQuery}"
+            </p>
+          </div>
+        )}
 
         {isLoading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -132,145 +102,35 @@ export default function DashboardOverviewPage() {
         
         {!isLoading && !isError && chatbots.length === 0 && (
           <div className="text-center py-20"> {/* Increased padding */}
-            <Bot size={64} className="mx-auto text-gray-300 dark:text-gray-600 mb-6" />
+            <Robot size={64} className="mx-auto text-gray-300 dark:text-gray-600 mb-6" weight="thin" />
             <h2 className="text-2xl font-semibold text-muted-foreground mb-3">No Chatbots Yet</h2>
             <p className="text-muted-foreground mb-6">Get started by creating your first intelligent assistant.</p>
-            <Button onClick={handleCreateNewChatbotClick} size="lg" variant="default"> {/* Changed to default variant */}
-              <PlusCircle className="mr-2 h-5 w-5" /> Create Your First Chatbot
+            <RainbowButton onClick={handleCreateNewChatbotClick} size="lg">
+              <PlusCircle className="mr-2 h-5 w-5" weight="bold" /> Create Your First Chatbot
+            </RainbowButton>
+          </div>
+        )}
+
+        {!isLoading && !isError && chatbots.length > 0 && filteredChatbots.length === 0 && searchQuery.trim() && (
+          <div className="text-center py-20">
+            <MagnifyingGlass size={64} className="mx-auto text-gray-300 dark:text-gray-600 mb-6" weight="thin" />
+            <h2 className="text-2xl font-semibold text-muted-foreground mb-3">No Results Found</h2>
+            <p className="text-muted-foreground mb-6">No chatbots match your search "{searchQuery}"</p>
+            <Button 
+              onClick={() => setSearchQuery('')} 
+              variant="outline"
+            >
+              Clear Search
             </Button>
           </div>
         )}
 
-        {!isLoading && !isError && chatbots.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {chatbots.map((chatbot) => (
-              <div 
-                key={chatbot.id} 
-                className="relative group bg-card rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col max-w-xs"
-                // style={{ backgroundImage: getDeterministicGradient(chatbot.id) }} // Apply gradient here if text contrast is managed
-              >
-                <div 
-                  className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ backgroundImage: getDeterministicGradient(chatbot.id) }}
-                ></div>
-
-                <div className="relative z-10 p-5 flex flex-col flex-grow">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="p-2 bg-white/30 dark:bg-black/20 backdrop-blur-sm rounded-lg">
-                        <GetDeterministicIcon id={chatbot.id} />
-                    </div>
-                    <div className="flex gap-1">
-                      {/* Direct Chat Button */}
-                      {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-gray-600 dark:text-gray-400 hover:bg-white/20 dark:hover:bg-black/10 h-8 w-8"
-                          asChild
-                        >
-                          <Link href={`/chat/${chatbot.shareable_url_slug}`} target="_blank" title="Go to Chatbot">
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="sr-only">Go to Chatbot</span>
-                          </Link>
-                        </Button>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-gray-600 dark:text-gray-400 hover:bg-white/20 dark:hover:bg-black/10 h-8 w-8">
-                              <MoreHorizontal className="h-5 w-5" />
-                              <span className="sr-only">More options</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
-                            <>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/chat/${chatbot.shareable_url_slug}`} target="_blank" className="flex items-center w-full">
-                                  <ExternalLink className="mr-2 h-4 w-4" />
-                                  Go to Chatbot
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                            </>
-                          )}
-                          <DropdownMenuItem onClick={() => openEditDialog(chatbot)}>
-                            <Edit3 className="mr-2 h-4 w-4" />
-                            Rename / Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => openDeleteDialog(chatbot)} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/50">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  <Link href={`/dashboard/chatbots/${chatbot.id}/`} passHref legacyBehavior className="flex flex-col flex-grow">
-                    <a className="block cursor-pointer flex flex-col flex-grow">
-                      <h2 
-                        className="text-xl font-semibold mb-1 truncate text-gray-800 dark:text-white group-hover:text-primary transition-colors"
-                        title={chatbot.name}
-                      >
-                        {chatbot.name}
-                      </h2>
-                      {chatbot.student_facing_name && (
-                        <p className="text-xs text-gray-600 dark:text-gray-300 mb-2 truncate" title={chatbot.student_facing_name}>
-                          Public: {chatbot.student_facing_name}
-                        </p>
-                      )}
-                      <div className="flex-grow"></div> {/* Spacer to push date to bottom */} 
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-auto">
-                        Created: {new Date(chatbot.created_at).toLocaleDateString()}
-                      </p>
-                    </a>
-                  </Link>
-
-                  {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Link2 className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Share</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(`${window.location.origin}/chat/${chatbot.shareable_url_slug}`)}
-                          className="h-8"
-                        >
-                          <Copy className="h-4 w-4 mr-2" />
-                          Copy Link
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {chatbot.visibility !== 'private' && chatbot.shareable_url_slug && (
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Open</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`/chat/${chatbot.shareable_url_slug}`, '_blank')}
-                          className="h-8"
-                        >
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+        {!isLoading && !isError && filteredChatbots.length > 0 && (
+          <ChatbotCards 
+            chatbots={filteredChatbots}
+            onEditChatbot={openEditDialog}
+            onDeleteChatbot={openDeleteDialog}
+          />
         )}
       </div>
       <CreateChatbotDialog 

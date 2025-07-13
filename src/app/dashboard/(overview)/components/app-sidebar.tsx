@@ -2,27 +2,11 @@
 
 import * as React from "react"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
+  ChatTeardropDots,
   CreditCard,
-  UserCircle,
-  LayoutDashboard,
-  Cog,
-  BarChart3,
-  FileText,
-  CreditCardIcon,
-  DollarSign,
-  ListChecks,
-  Receipt,
-} from "lucide-react"
+  PuzzlePiece, // New Icon
+  User,
+} from "@phosphor-icons/react"
 
 import { NavMain } from "@/app/dashboard/(overview)/components/nav-main"
 import { NavUser } from "@/app/dashboard/(overview)/components/nav-user"
@@ -39,8 +23,13 @@ const navMainItems = [
   {
     title: "Chatbots",
     url: "/dashboard",
-    icon: Bot,
+    icon: ChatTeardropDots,
     // isActive: true, // This is handled by NavMain now
+  },
+  {
+    title: "Integrations",
+    url: "/dashboard/integrations",
+    icon: PuzzlePiece,
   },
   {
     title: "Billing",
@@ -64,7 +53,7 @@ const navMainItems = [
   {
     title: "Account",
     url: "/dashboard/account",
-    icon: UserCircle,
+    icon: User,
   },
   
   // Add other main navigation items as needed
@@ -80,13 +69,13 @@ const navMainItems = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // User data will be fetched in NavUser or passed down
   return (
-    <Sidebar collapsible="icon" {...props} variant="inset" className="bg-sidebar">
-      <SidebarHeader className="p-2 text-center">
+    <Sidebar {...props} className="border-r border-border p-4 bg-sidebar">
+      <SidebarHeader className="mb-8">
         {/* You can put a logo or app name here */}
-        <div className="flex items-center justify-start gap-2 p-2 ">
+        <div className="flex items-center justify-start gap-2">
             {/* <LayoutDashboard className="h-6 w-6" /> */}
-            <Image src="/syllabi_logo.png" alt="logo" width={16} height={16} />
-            <span className="font-semibold text-xl group-data-[collapsible=icon]:hidden">Syllabi</span>
+            <Image src="/syllabi_logo.png" alt="logo" width={24} height={24} />
+            <span className="font-semibold text-xl uppercase tracking-wide">Syllabi</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -94,6 +83,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navMainItems} />
       </SidebarContent>
       <SidebarFooter>
+        <hr className="my-4" />
         {/* NavUser will handle fetching/displaying user info and logout */}
         <NavUser />
       </SidebarFooter>

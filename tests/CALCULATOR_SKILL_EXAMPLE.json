@@ -1,0 +1,39 @@
+{
+  "name": "advanced_calculator",
+  "display_name": "Advanced Calculator", 
+  "description": "Perform mathematical operations with detailed results",
+  "skill_type": "webhook",
+  "function_schema": {
+    "name": "advanced_calculator",
+    "description": "Perform mathematical calculations (add, subtract, multiply, divide)",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "type": "string",
+          "description": "Mathematical operation to perform (add, subtract, multiply, divide)"
+        },
+        "a": {
+          "type": "number",
+          "description": "First number"
+        },
+        "b": {
+          "type": "number", 
+          "description": "Second number"
+        }
+      },
+      "required": ["operation", "a", "b"]
+    }
+  },
+  "configuration": {
+    "webhook_config": {
+      "url": "http://localhost:8000/calculate",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "timeout_ms": 10000
+    }
+  },
+  "is_active": true
+} 
