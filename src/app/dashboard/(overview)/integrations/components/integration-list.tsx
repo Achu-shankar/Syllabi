@@ -20,6 +20,18 @@ const AVAILABLE_INTEGRATIONS = [
         docsUrl: '#', // TODO: Add real docs url
     },
     {
+        type: 'google' as const,
+        name: 'Google Workspace',
+        description: 'Connect to Gmail, Google Drive, Calendar, and other Google services.',
+        docsUrl: '#', // TODO: Add real docs url
+    },
+    {
+        type: 'notion' as const,
+        name: 'Notion',
+        description: 'Connect your Notion workspace to access pages, databases, and content.',
+        docsUrl: '#', // TODO: Add real docs url
+    },
+    {
         type: 'alexa' as const,
         name: 'Amazon Alexa',
         description: 'Enable voice interactions with your chatbots through Alexa skills.',

@@ -75,6 +75,14 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
             },
             onError: (err) => {
               console.error("Chat error:", err);
+              // Add a fallback assistant message locally without triggering another API call
+              const fallbackMessage: Message = {
+                id: generateUUID(),
+                role: 'assistant',
+                content: '⚠️ Sorry, something went wrong. Please try again.',
+                createdAt: new Date(),
+              };
+              setMessages((prev) => [...prev, fallbackMessage]);
             },
             // experimental_attachments: true, // Enable if needed for backend processing via body
   });

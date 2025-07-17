@@ -15,6 +15,8 @@ interface SlackOAuthResponse {
   };
   authed_user: {
     id: string;
+    access_token?: string; // User token for personal actions
+    scope?: string; // User scopes
   };
   error?: string;
 }
@@ -68,15 +70,32 @@ export async function GET(request: NextRequest) {
 
   const { access_token, scope, bot_user_id, team, authed_user } = tokenJson;
 
+  // Prepare tokens for encryption
+  const botToken = access_token; // This is the bot token
+  const userToken = authed_user.access_token; // This is the user token (may be undefined)
+
   // 3. Encrypt and store in DB
   const { data: encrypted, error: encError } = await supabaseAdminClient.rpc('encrypt_slack_credentials', {
-    bot_token_in: access_token,
+    bot_token_in: botToken,
     signing_secret_in: process.env.SLACK_SIGNING_SECRET!, // Non-null assertion
   }).single<{ bot_token_out: string; signing_secret_out: string }>();
 
   if (encError) {
     console.error('Encrypt RPC failed:', encError);
     return NextResponse.json({ error: 'Encryption failed' }, { status: 500 });
+  }
+
+  // Encrypt user token if available
+  let encryptedUserToken = null;
+  if (userToken) {
+    const { data: userEncrypted, error: userEncError } = await supabaseAdminClient.rpc('encrypt_slack_credentials', {
+      bot_token_in: userToken, // Reusing the same function for user token
+      signing_secret_in: process.env.SLACK_SIGNING_SECRET!,
+    }).single<{ bot_token_out: string; signing_secret_out: string }>();
+
+    if (!userEncError && userEncrypted) {
+      encryptedUserToken = userEncrypted.bot_token_out;
+    }
   }
 
   // Check if this Slack workspace is already connected by this user
@@ -95,15 +114,18 @@ export async function GET(request: NextRequest) {
       team_id: team.id,
       team_name: team.name,
       scope,
+      user_scope: authed_user.scope,
       bot_user_id,
       authed_user_id: authed_user.id,
     },
     credentials: {
       bot_token: encrypted!.bot_token_out,
+      ...(encryptedUserToken && { user_token: encryptedUserToken }), // Only add if user token exists
     },
   };
 
   let upsertError;
+  let integrationId;
   if (existingIntegration) {
     // Update existing integration
     const { error } = await supabaseAdminClient
@@ -111,17 +133,57 @@ export async function GET(request: NextRequest) {
       .update(integrationData)
       .eq('id', existingIntegration.id);
     upsertError = error;
+    integrationId = existingIntegration.id;
   } else {
     // Insert new integration
-    const { error } = await supabaseAdminClient
+    const { data, error } = await supabaseAdminClient
       .from('connected_integrations')
-      .insert(integrationData);
+      .insert(integrationData)
+      .select('id')
+      .single();
     upsertError = error;
+    integrationId = data?.id;
   }
 
   if (upsertError) {
     console.error('Failed to upsert Slack integration:', upsertError);
     return NextResponse.json({ error: 'DB error' }, { status: 500 });
+  }
+
+  // Auto-associate this integration with all of the user's chatbots
+  if (integrationId) {
+    try {
+      // Get all chatbots owned by this user
+      const { data: userChatbots } = await supabaseAdminClient
+        .from('chatbots')
+        .select('id')
+        .eq('user_id', user.id);
+
+      if (userChatbots && userChatbots.length > 0) {
+        // Create associations for all chatbots (ignore conflicts if already exists)
+        const associations = userChatbots.map(chatbot => ({
+          chatbot_id: chatbot.id,
+          integration_id: integrationId
+        }));
+
+        const { error: associationError } = await supabaseAdminClient
+          .from('chatbot_integrations')
+          .upsert(associations, { 
+            onConflict: 'chatbot_id,integration_id',
+            ignoreDuplicates: true 
+          });
+
+        if (associationError) {
+          console.error('Failed to auto-associate Slack integration with chatbots:', associationError);
+          // Don't fail the entire flow - the integration was successful
+        } else {
+          console.log(`Auto-associated Slack integration ${integrationId} with ${userChatbots.length} chatbots`);
+        }
+      }
+    } catch (autoAssociateError) {
+      console.error('Error during auto-association:', autoAssociateError);
+      // Don't fail the entire flow
+    }
   }
 
   // 4. Clean cookie and redirect to dashboard

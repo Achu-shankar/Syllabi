@@ -179,6 +179,42 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Auto-associate this integration with all of the user's chatbots
+    if (alexaConnection?.id) {
+      try {
+        // Get all chatbots owned by this user
+        const { data: userChatbots } = await serviceSupabase
+          .from('chatbots')
+          .select('id')
+          .eq('user_id', userId);
+
+        if (userChatbots && userChatbots.length > 0) {
+          // Create associations for all chatbots (ignore conflicts if already exists)
+          const associations = userChatbots.map(chatbot => ({
+            chatbot_id: chatbot.id,
+            integration_id: alexaConnection.id
+          }));
+
+          const { error: associationError } = await serviceSupabase
+            .from('chatbot_integrations')
+            .upsert(associations, { 
+              onConflict: 'chatbot_id,integration_id',
+              ignoreDuplicates: true 
+            });
+
+          if (associationError) {
+            console.error('[Alexa OAuth Token] Failed to auto-associate Alexa integration with chatbots:', associationError);
+            // Don't fail the entire flow - the integration was successful
+          } else {
+            console.log(`[Alexa OAuth Token] Auto-associated Alexa integration ${alexaConnection.id} with ${userChatbots.length} chatbots`);
+          }
+        }
+      } catch (autoAssociateError) {
+        console.error('[Alexa OAuth Token] Error during auto-association:', autoAssociateError);
+        // Don't fail the entire flow
+      }
+    }
+
     // 9. Generate access token (JWT)
     const tokenPayload = {
       sub: userId, // Syllabi user ID (standard JWT claim)

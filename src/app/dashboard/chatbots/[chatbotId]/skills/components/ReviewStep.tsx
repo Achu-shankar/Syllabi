@@ -8,6 +8,7 @@ interface ReviewStepProps {
     display_name: string;
     description: string;
     name: string;
+    category: string;
   };
   webhookFormData: {
     webhook_url: string;
@@ -47,6 +48,10 @@ export function ReviewStep({ formData, webhookFormData, parameters, is_active, o
                 <div>
                   <span className="text-muted-foreground">Function Name:</span>
                   <p className="font-mono">{formData.name}</p>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Category:</span>
+                  <p className="font-medium">{formData.category}</p>
                 </div>
               </div>
               <div className="mt-2">

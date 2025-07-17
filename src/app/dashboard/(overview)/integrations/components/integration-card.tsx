@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export type IntegrationDefinition = {
-    type: 'slack' | 'discord' | 'alexa'; // Add more as you go
+    type: 'slack' | 'discord' | 'alexa' | 'google' | 'notion'; // Add notion
     name: string;
     description: string;
     docsUrl: string;
@@ -51,8 +51,14 @@ function WorkspaceRow({ connection }: { connection: IntegrationConnection }) {
                 case 'discord':
                     additionalInfo = 'To fully remove the bot, go to Discord → Server Settings → Integrations → Bots & Apps → SyllabiBot → Remove.';
                     break;
+                case 'google':
+                    additionalInfo = 'Your Google account has been disconnected. You can revoke access at https://myaccount.google.com/permissions if desired.';
+                    break;
                 case 'alexa':
                     additionalInfo = 'The Alexa skill has been unlinked from your account.';
+                    break;
+                case 'notion':
+                    additionalInfo = 'Your Notion workspace has been disconnected from Syllabi.';
                     break;
             }
             
@@ -88,8 +94,14 @@ function WorkspaceRow({ connection }: { connection: IntegrationConnection }) {
                     {connection.type === 'slack' && connection.metadata.team_id && (
                         <>Team ID: {connection.metadata.team_id}</>
                     )}
+                    {connection.type === 'google' && connection.metadata.email && (
+                        <>{connection.metadata.email}</>
+                    )}
                     {connection.type === 'alexa' && connection.metadata.amazon_user_id && (
                         <>Amazon ID: {connection.metadata.amazon_user_id}</>
+                    )}
+                    {connection.type === 'notion' && connection.metadata.workspace_name && (
+                        <>{connection.metadata.workspace_name}</>
                     )}
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -113,10 +125,14 @@ function WorkspaceRow({ connection }: { connection: IntegrationConnection }) {
                         <AlertDialogDescription>
                             This will disconnect the <strong>{connection.name}</strong> {
                                 connection.type === 'discord' ? 'server' : 
-                                connection.type === 'alexa' ? 'account' : 'workspace'
+                                connection.type === 'alexa' ? 'account' : 
+                                connection.type === 'google' ? 'account' : 
+                                connection.type === 'notion' ? 'workspace' : 'workspace'
                             }. Your chatbot will no longer be able to respond {
                                 connection.type === 'discord' ? 'in Discord' : 
-                                connection.type === 'alexa' ? 'to Alexa voice commands' : 'in Slack'
+                                connection.type === 'alexa' ? 'to Alexa voice commands' : 
+                                connection.type === 'google' ? 'to Google Workspace requests' : 
+                                connection.type === 'notion' ? 'to Notion requests' : 'in Slack'
                             }. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -156,9 +172,17 @@ export function IntegrationCard({ definition, connections, isJustConnected = fal
                             <Image src="/Slack_Mark_Web.png" alt="Slack" width={32} height={32} />
                         ) : definition.type === 'discord' ? (
                             <Image src="/Discord_logo.png" alt="Discord" width={32} height={32} />
+                        ) : definition.type === 'google' ? (
+                            <div className="h-8 w-8 bg-gradient-to-br from-blue-500 via-red-500 via-yellow-500 to-green-500 rounded flex items-center justify-center text-white text-xs font-bold">
+                                G
+                            </div>
                         ) : definition.type === 'alexa' ? (
                             <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-cyan-400 rounded flex items-center justify-center text-white text-xs font-bold">
                                 A
+                            </div>
+                        ) : definition.type === 'notion' ? (
+                            <div className="h-8 w-8 bg-black rounded flex items-center justify-center text-white text-xs font-bold">
+                                N
                             </div>
                         ) : (
                             <div className="h-6 w-6 bg-muted-foreground rounded" />
@@ -171,7 +195,9 @@ export function IntegrationCard({ definition, connections, isJustConnected = fal
                                 <span className="text-sm font-normal text-muted-foreground">
                                     {connections.length}{' '}
                                     {definition.type === 'discord' ? 'server' : 
-                                     definition.type === 'alexa' ? 'account' : 'workspace'}{connections.length !== 1 ? 's' : ''} connected
+                                     definition.type === 'alexa' ? 'account' : 
+                                     definition.type === 'google' ? 'account' : 
+                                     definition.type === 'notion' ? 'workspace' : 'workspace'}{connections.length !== 1 ? 's' : ''} connected
                                 </span>
                             )}
                         </CardTitle>
@@ -185,7 +211,9 @@ export function IntegrationCard({ definition, connections, isJustConnected = fal
                             <AccordionTrigger className="py-2 hover:no-underline">
                                 <span className="text-sm font-medium">
                                     {definition.type === 'discord' ? 'Manage servers' : 
-                                     definition.type === 'alexa' ? 'Manage accounts' : 'Manage workspaces'}
+                                     definition.type === 'alexa' ? 'Manage accounts' : 
+                                     definition.type === 'google' ? 'Manage accounts' : 
+                                     definition.type === 'notion' ? 'Manage workspaces' : 'Manage workspaces'}
                                 </span>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2 max-h-72 overflow-y-auto pr-2">
@@ -215,14 +243,12 @@ export function IntegrationCard({ definition, connections, isJustConnected = fal
                         </Button>
                     </div>
                 ) : (
-                    <a href={
-                        definition.type === 'discord' 
-                            ? process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || '#'
-                            : `/api/integrations/${definition.type}/oauth/start`
-                    }>
+                    <a href={`/api/integrations/${definition.type}/oauth/start`}>
                         <Button size="sm" variant={hasConnections ? 'ghost' : 'default'}>
                             {hasConnections ? (
-                                definition.type === 'discord' ? 'Add server' : 'Add workspace'
+                                definition.type === 'discord' ? 'Add server' : 
+                                definition.type === 'google' ? 'Add account' : 
+                                definition.type === 'notion' ? 'Add workspace' : 'Add workspace'
                             ) : 'Connect'}
                         </Button>
                     </a>

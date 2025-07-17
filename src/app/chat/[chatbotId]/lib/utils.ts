@@ -55,8 +55,8 @@ export function getMostRecentUserMessage(messages: Array<Message>) {
 }
 
 
-type ResponseMessageWithoutId = CoreToolMessage | CoreAssistantMessage;
-type ResponseMessage = ResponseMessageWithoutId & { id: string };
+export type ResponseMessageWithoutId = CoreToolMessage | CoreAssistantMessage;
+export type ResponseMessage = ResponseMessageWithoutId & { id: string };
 
 export function getTrailingMessageId({
   messages,

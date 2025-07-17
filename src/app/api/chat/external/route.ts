@@ -201,6 +201,7 @@ export async function POST(request: Request) {
       skillId: '', // Will be set by individual skills
       chatSessionId: id,
       userId: undefined, // No authenticated user for external channels
+      chatbotId: chatbotId, // Add chatbotId for integration lookup
       channel: mapChannelForSkills(channel),
       testMode: false,
     };

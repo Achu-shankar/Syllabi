@@ -35,13 +35,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { type Skill } from '@/app/dashboard/libs/skills_db_queries';
+import { type Skill } from '@/app/dashboard/libs/skills_db_queries_v2';
 import { useSkills } from '../hooks/useSkills';
 import { TestActionModal } from './TestActionModal';
 import { ActionModalV2 } from './ActionModalV2';
 import { cn } from '@/lib/utils';
 import { RainbowButton } from '@/components/magicui/rainbow-button';
 import { GlowEffect } from '@/components/ui/glow-effect';
+
+interface SkillWithAssociation extends Skill {
+  association: {
+    id: string;
+    is_active: boolean;
+    custom_config?: Record<string, any>;
+  };
+}
 
 interface ActionsListProps {
   chatbotId: string;
@@ -51,12 +59,12 @@ interface ActionsListProps {
 }
 
 export function ActionsList({ chatbotId, searchQuery, statusFilter, onOpenCreateModal }: ActionsListProps) {
-  const { data: skills, isLoading, deleteSkill, toggleSkillStatus, refetch } = useSkills(chatbotId);
-  const [testingAction, setTestingAction] = useState<Skill | null>(null);
-  const [editingAction, setEditingAction] = useState<Skill | null>(null);
-  const [deletingAction, setDeletingAction] = useState<Skill | null>(null);
+  const { data: skills = [], isLoading, error, deleteSkill, toggleSkillStatus, refetch } = useSkills(chatbotId);
+  const [testingAction, setTestingAction] = useState<SkillWithAssociation | null>(null);
+  const [editingAction, setEditingAction] = useState<SkillWithAssociation | null>(null);
+  const [deletingAction, setDeletingAction] = useState<SkillWithAssociation | null>(null);
 
-  const handleDeleteAction = (action: Skill) => {
+  const handleDeleteAction = (action: SkillWithAssociation) => {
     setDeletingAction(action);
   };
 
@@ -67,18 +75,18 @@ export function ActionsList({ chatbotId, searchQuery, statusFilter, onOpenCreate
     setDeletingAction(null);
   };
 
-  const handleToggleStatus = (action: Skill) => {
+  const handleToggleStatus = (action: SkillWithAssociation) => {
     toggleSkillStatus(action.id);
   };
 
-  const filteredSkills = (skills || []).filter(skill => {
+  const filteredSkills = (skills || []).filter((skill: SkillWithAssociation) => {
     const searchMatch = searchQuery.trim() === '' || 
       skill.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       skill.description.toLowerCase().includes(searchQuery.toLowerCase());
     
     const statusMatch = statusFilter === 'all' || 
-      (statusFilter === 'active' && skill.is_active) ||
-      (statusFilter === 'inactive' && !skill.is_active);
+      (statusFilter === 'active' && skill.association?.is_active) ||
+      (statusFilter === 'inactive' && !skill.association?.is_active);
 
     return searchMatch && statusMatch;
   });
@@ -148,7 +156,7 @@ export function ActionsList({ chatbotId, searchQuery, statusFilter, onOpenCreate
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredSkills.map((action) => (
+        {filteredSkills.map((action: SkillWithAssociation) => (
           <Card 
             key={action.id} 
             className="p-5 border shadow-sm hover:shadow-md rounded-xl transition-all group flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -161,14 +169,14 @@ export function ActionsList({ chatbotId, searchQuery, statusFilter, onOpenCreate
                   variant="secondary"
                   className={cn(
                     "flex items-center gap-1.5 ring-1 ring-border flex-shrink-0",
-                    action.is_active ? "text-green-600" : "text-muted-foreground"
+                    action.association?.is_active ? "text-green-600" : "text-muted-foreground"
                   )}
                 >
                   <div className={cn(
                     "w-2 h-2 rounded-full",
-                    action.is_active ? "bg-green-500 animate-pulse [animation-duration:3s]" : "bg-muted-foreground/50"
+                    action.association?.is_active ? "bg-green-500 animate-pulse [animation-duration:3s]" : "bg-muted-foreground/50"
                   )} />
-                    {action.is_active ? 'Active' : 'Inactive'}
+                    {action.association?.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
               <p className="text-muted-foreground text-sm line-clamp-2" title={action.description}>
@@ -214,12 +222,12 @@ export function ActionsList({ chatbotId, searchQuery, statusFilter, onOpenCreate
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => handleToggleStatus(action)}>
-                      {action.is_active ? (
+                      {action.association?.is_active ? (
                         <PowerOff className="mr-2 h-4 w-4" />
                       ) : (
                         <Power className="mr-2 h-4 w-4" />
                       )}
-                      {action.is_active ? 'Deactivate' : 'Activate'}
+                      {action.association?.is_active ? 'Deactivate' : 'Activate'}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 

@@ -193,6 +193,7 @@ export async function POST(request: Request) {
       skillId: '', // Will be set by individual skills
       chatSessionId: id,
       userId: userId || undefined,
+      chatbotId: chatbotId, // Add chatbotId for integration lookup
       channel: 'embed' as const,
       testMode: false
     };

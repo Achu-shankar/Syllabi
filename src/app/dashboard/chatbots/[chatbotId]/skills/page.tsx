@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { useSkills } from './hooks/useSkills';
 import { ActionModalV2 } from './components/ActionModalV2';
 import { ActionsList } from './components/ActionsList';
+import { CategorySkillsView } from './components/CategorySkillsView';
 import { BrowseSkillsModal } from './components/BrowseSkillsModal';
 import { RainbowButton } from '@/components/magicui/rainbow-button';
 import { GlowEffect } from '@/components/ui/glow-effect';
@@ -23,17 +24,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skill } from '@/app/dashboard/libs/skills_db_queries_v2';
 
 export default function SkillsPage() {
   const params = useParams();
   const chatbotId = params.chatbotId as string;
   
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingAction, setEditingAction] = useState<Skill | null>(null);
   const [browseSkillsOpen, setBrowseSkillsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'category'>('category');
 
-  const { data: skills = [], isLoading, error } = useSkills(chatbotId);
+  const { data: skills = [], isLoading, error, deleteSkill, toggleSkillStatus } = useSkills(chatbotId);
   const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
 
   const clearAllFilters = () => {
@@ -158,15 +162,47 @@ export default function SkillsPage() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            {/* View Toggle */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewMode(viewMode === 'category' ? 'list' : 'category')}
+              className="h-9"
+            >
+              {viewMode === 'category' ? 'View all' : 'View by category'}
+            </Button>
           </div>
         </div>
         
-        <ActionsList 
-          chatbotId={chatbotId} 
-          searchQuery={searchQuery}
-          statusFilter={statusFilter}
-          onOpenCreateModal={() => setCreateModalOpen(true)}
-        />
+        {/* Conditional rendering based on view mode */}
+        {viewMode === 'list' ? (
+          <ActionsList 
+            chatbotId={chatbotId} 
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+            onOpenCreateModal={() => setCreateModalOpen(true)}
+          />
+        ) : (
+          <CategorySkillsView
+            skills={skills.filter((skill: any) => {
+              const searchMatch = searchQuery.trim() === '' || 
+                skill.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                skill.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                skill.category.toLowerCase().includes(searchQuery.toLowerCase());
+              
+              const statusMatch = statusFilter === 'all' || 
+                (statusFilter === 'active' && skill.association?.is_active) ||
+                (statusFilter === 'inactive' && !skill.association?.is_active);
+
+              return searchMatch && statusMatch;
+            })}
+            isLoading={isLoading}
+            onEditSkill={(skill) => setEditingAction(skill)}
+            onDeleteSkill={(skill) => deleteSkill(skill.id)}
+            onToggleStatus={(skill) => toggleSkillStatus(skill.id)}
+          />
+        )}
       </div>
 
       {/* Create Modal */}
@@ -175,6 +211,15 @@ export default function SkillsPage() {
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
         chatbotId={chatbotId}
+      />
+
+      {/* Edit Modal */}
+      <ActionModalV2
+        mode="edit"
+        open={!!editingAction}
+        onOpenChange={(open) => !open && setEditingAction(null)}
+        chatbotId={chatbotId}
+        action={editingAction}
       />
 
       {/* Browse Skills Modal */}

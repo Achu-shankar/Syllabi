@@ -18,6 +18,7 @@ import { Skill } from '@/app/dashboard/libs/skills_db_queries_v2';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 
 // Placeholder imports for step components (to be implemented)
 // import { BasicInfoStep } from './BasicInfoStep';
@@ -40,6 +41,7 @@ interface FormData {
   display_name: string;
   description: string;
   name: string;
+  category: string;
 }
 
 interface WebhookFormData {
@@ -72,8 +74,13 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
     display_name: '',
     description: '',
     name: '',
+    category: 'custom',
   });
-  const [errors, setErrors] = useState<{ display_name?: string; description?: string; webhook_url?: string }>({});
+  const [errors, setErrors] = useState<{ display_name?: string; description?: string; webhook_url?: string; category?: string }>({});
+  
+  // Category state
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Webhook step state
   const [webhookFormData, setWebhookFormData] = useState<WebhookFormData>({
@@ -94,6 +101,49 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
 
   // Skills API
   const { createSkill, updateSkill, isCreating, isUpdating } = useSkills(chatbotId);
+
+  // Fetch existing categories
+  const { data: existingCategories = [] } = useQuery({
+    queryKey: ['skill-categories', chatbotId],
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/chatbots/${chatbotId}/skills`);
+      if (!response.ok) throw new Error('Failed to fetch skills');
+      const { skills } = await response.json();
+      
+      // Extract unique categories
+      const categories = new Set<string>();
+      skills.forEach((skill: any) => {
+        if (skill.category && skill.category !== 'custom') {
+          categories.add(skill.category);
+        }
+      });
+      
+      // Add some default categories
+      ['API', 'Database', 'Notifications', 'Analytics', 'Integration', 'Automation'].forEach(cat => {
+        categories.add(cat);
+      });
+      
+      return Array.from(categories).sort();
+    },
+    enabled: open,
+  });
+
+  // Category handlers
+  const handleCategoryChange = (value: string) => {
+    if (value === 'new') {
+      setShowNewCategory(true);
+      setFormData({ ...formData, category: '' });
+    } else {
+      setShowNewCategory(false);
+      setFormData({ ...formData, category: value });
+      setNewCategoryName('');
+    }
+  };
+
+  const handleNewCategoryNameChange = (value: string) => {
+    setNewCategoryName(value);
+    setFormData({ ...formData, category: value });
+  };
 
   // Navigation logic
   const stepIndex = steps.findIndex(step => step.key === currentStep);
@@ -124,6 +174,7 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
           display_name: action.display_name || action.name,
           description: action.description,
           name: action.name,
+          category: action.category || 'custom',
         });
         setWebhookFormData({
           webhook_url: config.url || '',
@@ -137,7 +188,7 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
         setNewEnumValue({});
         setShowAdvanced(false);
       } else if (mode === 'create') {
-        setFormData({ display_name: '', description: '', name: '' });
+        setFormData({ display_name: '', description: '', name: '', category: 'custom' });
         setWebhookFormData({ webhook_url: '', method: 'POST', headers: {}, timeout_ms: 10000 });
         setParameters([]);
         setIsActive(true);
@@ -382,7 +433,7 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
       display_name: formData.display_name,
       description: formData.description,
       type: 'custom' as const,
-      category: 'webhook',
+      category: formData.category,
       function_schema: {
         name: formData.name,
         description: formData.description,
@@ -416,6 +467,7 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
         updates: {
           display_name: payload.display_name,
           description: payload.description,
+          category: payload.category,
           configuration: payload.configuration,
           function_schema: payload.function_schema,
           is_active: payload.is_active,
@@ -453,6 +505,9 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
         }
         if (parsed.name && typeof parsed.name === 'string') {
           setFormData(prev => ({ ...prev, name: parsed.name }));
+        }
+        if (parsed.category && typeof parsed.category === 'string') {
+          setFormData(prev => ({ ...prev, category: parsed.category }));
         }
         // Webhook config
         if (parsed.configuration?.webhook_config) {
@@ -594,6 +649,11 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
                   onDisplayNameChange={handleDisplayNameChange}
                   onDescriptionChange={handleDescriptionChange}
                   onFunctionNameChange={handleFunctionNameChange}
+                  onCategoryChange={handleCategoryChange}
+                  onNewCategoryNameChange={handleNewCategoryNameChange}
+                  existingCategories={existingCategories}
+                  showNewCategory={showNewCategory}
+                  newCategoryName={newCategoryName}
                 />
               )}
               {currentStep === 'webhook' && (

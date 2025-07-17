@@ -450,7 +450,7 @@ export async function isSkillNameUnique(userId: string, name: string, excludeSki
 export async function searchChatbotSkills(
   query: string, 
   chatbotId: string, 
-  limit: number = 5
+  limit: number = 10
 ): Promise<SkillWithAssociation[]> {
   const supabase = await createClient();
   
@@ -679,7 +679,7 @@ export async function getSkillExecutionStats(skillId: string, days: number = 7):
  * Log a skill execution
  */
 export async function createSkillExecution(input: CreateSkillExecutionInput): Promise<SkillExecution> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
   
   const { data, error } = await supabase
     .from('skill_executions')

@@ -166,7 +166,7 @@ export async function getOptimalToolSelectionConfig(
   if (toolSelectionMethod) {
     return {
       method: toolSelectionMethod,
-      maxTools: toolSelectionMethod === 'direct' ? 10 : 5,
+      maxTools: toolSelectionMethod === 'direct' ? 100 : 10,
       semanticQuery: userQuery,
     };
   }
@@ -192,7 +192,7 @@ export async function getOptimalToolSelectionConfig(
     if (userQuery && userQuery.trim().length > 0) {
       return {
         method: 'semantic_retrieval',
-        maxTools: 5,
+        maxTools: 10,
         semanticQuery: userQuery,
       };
     } else {
@@ -252,107 +252,52 @@ function convertPropertyToZod(property: any): z.ZodType {
         stringSchema = stringSchema.url();
       } else if (format === 'date') {
         stringSchema = stringSchema.regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a valid date in YYYY-MM-DD format');
+      } else if (format === 'date-time') {
+        stringSchema = stringSchema.datetime();
       }
-      
-      // Handle enums
-      if (enumValues && Array.isArray(enumValues)) {
-        return z.enum(enumValues as [string, ...string[]]);
+
+      if (enumValues) {
+        // Zod enums require at least one value
+        if (enumValues.length > 0) {
+          return z.enum(enumValues as [string, ...string[]]).describe(description);
+        }
+        return z.string().describe(description); // Fallback for empty enum
       }
-      
+
       return stringSchema;
 
     case 'number':
+    case 'integer':
       let numberSchema = z.number();
-      
       if (description) {
         numberSchema = numberSchema.describe(description);
       }
-      
-      if (typeof minimum === 'number') {
+      if (minimum !== undefined) {
         numberSchema = numberSchema.min(minimum);
       }
-      
-      if (typeof maximum === 'number') {
+      if (maximum !== undefined) {
         numberSchema = numberSchema.max(maximum);
       }
-      
       return numberSchema;
 
-    case 'integer':
-      let intSchema = z.number().int();
-      
-      if (description) {
-        intSchema = intSchema.describe(description);
-      }
-      
-      if (typeof minimum === 'number') {
-        intSchema = intSchema.min(minimum);
-      }
-      
-      if (typeof maximum === 'number') {
-        intSchema = intSchema.max(maximum);
-      }
-      
-      return intSchema;
-
     case 'boolean':
-      let boolSchema = z.boolean();
-      
-      if (description) {
-        boolSchema = boolSchema.describe(description);
-      }
-      
-      return boolSchema;
+      return z.boolean().describe(description);
 
     case 'array':
-      let arraySchema: z.ZodType = z.array(z.any()); // Default to any array
-      
-      // Handle array items if specified
       if (property.items) {
-        const itemType = convertPropertyToZod(property.items);
-        arraySchema = z.array(itemType);
+        const itemSchema = convertPropertyToZod(property.items);
+        return z.array(itemSchema).describe(description);
       }
-      
-      if (description) {
-        arraySchema = arraySchema.describe(description);
-      }
-      
-      return arraySchema;
+      return z.array(z.any()).describe(description);
 
     case 'object':
-      let objectSchema: z.ZodType = z.record(z.any()); // Default to record of any
-      
-      // Handle nested object properties if specified
       if (property.properties) {
-        const nestedFields: Record<string, z.ZodType> = {};
-        const nestedRequired = property.required || [];
-        
-        Object.entries(property.properties).forEach(([key, prop]: [string, any]) => {
-          let nestedType = convertPropertyToZod(prop);
-          if (!nestedRequired.includes(key)) {
-            nestedType = nestedType.optional();
-          }
-          nestedFields[key] = nestedType;
-        });
-        
-        objectSchema = z.object(nestedFields);
+        return convertJsonSchemaToZod(property).describe(description);
       }
-      
-      if (description) {
-        objectSchema = objectSchema.describe(description);
-      }
-      
-      return objectSchema;
+      return z.object({}).describe(description);
 
     default:
-      // Fallback for unknown types
-      let anySchema = z.any();
-      
-      if (description) {
-        anySchema = anySchema.describe(description);
-      }
-      
-      return anySchema;
+      return z.any().describe(description);
   }
 }
 
