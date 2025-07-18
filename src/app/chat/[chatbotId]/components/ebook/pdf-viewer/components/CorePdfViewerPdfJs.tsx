@@ -216,7 +216,7 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
           pdfDocument.destroy();
         }
       };
-    }, [fileUrl, onDocumentLoadSuccess, onDocumentLoadError, pdfDocument]);
+    }, [fileUrl, onDocumentLoadSuccess, onDocumentLoadError]);
 
     // Reset page refs when document changes
     useEffect(() => {
@@ -275,7 +275,7 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
         });
         observer.disconnect();
       };
-    }, [numPages, pageDimensions.length, onVisiblePageChangeProp]);
+    }, [numPages, pageDimensions.length, onVisiblePageChangeProp, currentVisiblePage]);
 
     // --- Update Active Render Set based on Visible Page and Overscan ---
     useEffect(() => {
@@ -301,12 +301,23 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
       scrollToPage: (pageNumber: number) => {
         // Adjust pageNumber to be 0-indexed for pagePlaceholderRefs.current access
         const pageIndex = pageNumber - 1;
-        if (pageIndex >= 0 && pageIndex < numPages && pagePlaceholderRefs.current[pageIndex]) {
-          pagePlaceholderRefs.current[pageIndex]?.scrollIntoView({
-            behavior: 'smooth', 
-            block: 'start',    
-          });
-          // setCurrentPage(pageNumber); // Update store if IO doesn't catch it fast enough or for immediate feedback
+        if (pageIndex >= 0 && pageIndex < numPages && pagePlaceholderRefs.current[pageIndex] && viewerContainerRef.current) {
+          const pageElement = pagePlaceholderRefs.current[pageIndex];
+          const container = viewerContainerRef.current;
+          
+          if (pageElement && container) {
+            // Get the offset of the page element relative to the container
+            const pageOffsetTop = pageElement.offsetTop;
+            
+            // Scroll the container to show the page
+            container.scrollTo({
+              top: pageOffsetTop - 20, // Small offset for padding
+              behavior: 'smooth'
+            });
+            
+            // Update the current visible page immediately for faster feedback
+            setCurrentVisiblePage(pageNumber);
+          }
         } else {
           console.warn(`CorePdfViewerPdfJs: Attempted to scroll to invalid page ${pageNumber} or refs not ready.`);
         }

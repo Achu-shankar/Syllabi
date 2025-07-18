@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { DocumentChunk } from '../db/content_queries';
+import { CitationInput, UnifiedCitation, transformChunkToCitation } from '../types/citations';
 
 // Response interfaces matching our API endpoints
 interface DocumentChunksResponse {
@@ -165,8 +166,37 @@ export function useDocumentChunk(
 
 /**
  * Utility hook for citation highlighting - fetches chunks for multiple citations
+ * Now uses unified citation format that works for both documents and multimedia
  */
 export function useCitationChunks(
+  chatbotSlug: string,
+  citations: CitationInput[] | null,
+  options?: {
+    enabled?: boolean;
+  }
+) {
+  const chunkIds = citations?.map(c => c.chunk_id) || null;
+  
+  const { data, ...rest } = useChunksByIds(chatbotSlug, chunkIds, options);
+  
+  // Transform data to unified citation format
+  const citationChunks: UnifiedCitation[] = citations?.map(citation => {
+    const chunk = data?.chunks.find(c => c.chunk_id === citation.chunk_id);
+    return transformChunkToCitation(citation.reference_id, citation.chunk_id, chunk || null);
+  }) || [];
+  
+  return {
+    ...rest,
+    data: citationChunks,
+    chunksByReference: data?.chunksByReference || {}
+  };
+}
+
+/**
+ * Legacy hook for backward compatibility - will be removed after migration
+ * @deprecated Use useCitationChunks with CitationInput[] instead
+ */
+export function useLegacyCitationChunks(
   chatbotSlug: string,
   citations: Array<{ reference_id: string; chunk_id: string; page_number: number }> | null,
   options?: {
@@ -177,7 +207,7 @@ export function useCitationChunks(
   
   const { data, ...rest } = useChunksByIds(chatbotSlug, chunkIds, options);
   
-  // Transform data to match citation format
+  // Transform data to match old citation format
   const citationChunks = citations?.map(citation => {
     const chunk = data?.chunks.find(c => c.chunk_id === citation.chunk_id);
     return {

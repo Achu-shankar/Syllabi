@@ -46,6 +46,15 @@ interface InitiateMultimediaIndexingPayload {
   referenceId: string;
 }
 
+// Google Drive processing payload
+interface InitiateGoogleDriveProcessingPayload {
+  chatbotId: string;
+  userId: string;
+  integrationId: string;
+  fileId: string;
+  referenceId: string;
+}
+
 // ----- RESPONSES ----- //
 // Assuming backend returns task_identifier which we map to processingTaskId or indexingTaskId
 interface BackendTaskResponse {
@@ -225,5 +234,38 @@ export const apiClient = {
         return responseData as BackendTaskResponse;
     }
     throw new Error('Unexpected response status from multimedia indexing initiation.');
+  },
+
+  initiateGoogleDriveProcessing: async (payload: InitiateGoogleDriveProcessingPayload): Promise<BackendTaskResponse> => {
+    console.log('[API Client] Initiating Google Drive processing with backend:', payload);
+    const endpoint = `${API_BASE_URL}/google-drive/process-document`;
+
+    const backendPayload = {
+        user_id: payload.userId,
+        chatbot_id: payload.chatbotId,
+        integration_id: payload.integrationId,
+        file_id: payload.fileId,
+        reference_id: payload.referenceId,
+    };
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backendPayload)
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('[API Client] Error initiating Google Drive processing:', response.status, errorBody);
+        throw new Error(`Failed to initiate Google Drive processing: ${response.status} ${errorBody}`);
+    }
+    if (response.status === 200) { // OK
+        const responseData = await response.json();
+        console.log('[API Client] Google Drive processing response:', responseData);
+        return responseData as BackendTaskResponse;
+    }
+    throw new Error('Unexpected response status from Google Drive processing initiation.');
   }
 }; 

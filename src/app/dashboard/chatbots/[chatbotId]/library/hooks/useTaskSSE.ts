@@ -28,7 +28,7 @@ interface UseTaskSSEOptions {
   onClose?: () => void; 
 }
 
-// TODO: Get this from environment variables or a config file
+// TODO: Get this from environment variables or a config file  
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api/v1'; 
 
 export function useTaskSSE({
@@ -72,7 +72,7 @@ export function useTaskSSE({
 
     console.log(`[TaskSSE] useEffect (deps: taskId, enabled): Setting up SSE for taskId: ${taskId}`);
     const sseUrl = `${API_BASE_URL}/tasks/${taskId}/status-stream`;
-    const es = new EventSource(sseUrl, { withCredentials: true });
+    const es = new EventSource(sseUrl);
     eventSourceRef.current = es;
 
     es.onopen = (event) => {

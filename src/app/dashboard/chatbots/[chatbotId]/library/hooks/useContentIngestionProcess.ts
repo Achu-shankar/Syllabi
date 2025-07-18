@@ -4,9 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSupabaseUpload, type ConflictResolution } from './useSupabaseUpload';
 import { useTaskStore, IngestionTask } from '../store/taskStore';
 import { apiClient } from '../services/apiClient';
-import { useTaskSSE, SSEMessage } from './useTaskSSE';
+import { SSEMessage } from './useTaskSSE';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRefreshContentSources, useDeleteContentSource } from './useContentSources';
+import { useDeleteContentSource } from './useContentSources';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface IngestionProcessOptions {
@@ -24,7 +24,6 @@ export interface TaskSSEConnection {
 export function useContentIngestionProcess({ chatbotId, userId }: IngestionProcessOptions) {
   const { addTask, updateTask, getTask } = useTaskStore();
   const { uploadFile: supabaseUpload } = useSupabaseUpload(chatbotId);
-  const refreshContentSources = useRefreshContentSources(chatbotId);
   const deleteContentSource = useDeleteContentSource(chatbotId);
   const queryClient = useQueryClient();
 
@@ -45,11 +44,8 @@ export function useContentIngestionProcess({ chatbotId, userId }: IngestionProce
   const addConnection = useCallback((frontendTaskId: string, connection: TaskSSEConnection) => {
     console.log(`[IngestionProcess] Adding SSE connection for frontend task ${frontendTaskId}:`, connection);
     setActiveConnections(prev => {
-      console.log(`[IngestionProcess] Previous connections:`, Array.from(prev.entries()));
       const newMap = new Map(prev);
       newMap.set(frontendTaskId, connection);
-      console.log(`[IngestionProcess] New connections after adding:`, Array.from(newMap.entries()));
-      console.log(`[IngestionProcess] New map size:`, newMap.size);
       return newMap;
     });
   }, []);
@@ -418,6 +414,75 @@ export function useContentIngestionProcess({ chatbotId, userId }: IngestionProce
     }
   };
 
+  const startGoogleDriveIngestion = async (file: any, integrationId: string) => {
+    if (!userId) {
+      console.error('[IngestionProcess] Cannot start Google Drive ingestion: userId is not available.');
+      return;
+    }
+    if (!file || !file.id) {
+      console.error('[IngestionProcess] No Google Drive file provided for ingestion.');
+      return;
+    }
+
+    // Detect file type from Google Drive file
+    const isVideo = file.mimeType?.startsWith('video/') || file.name?.toLowerCase().match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/);
+    const isAudio = file.mimeType?.startsWith('audio/') || file.name?.toLowerCase().match(/\.(mp3|wav|aac|flac|ogg|m4a)$/);
+    const isMultimedia = isVideo || isAudio;
+    
+    const task = addTask({
+      name: file.name,
+      type: isMultimedia ? 'multimedia' : 'document',
+      file: undefined, // No local file for Google Drive
+      contentType: isMultimedia ? file.mimeType : 'application/pdf',
+      fileSize: file.size || 0,
+      ...(isMultimedia && { multimediaType: isVideo ? 'video' : 'audio' })
+    });
+
+    const referenceId = uuidv4();
+    updateTask(task.id, { 
+      referenceId: referenceId, 
+      status: 'processing_queued', 
+      currentStageMessage: 'Preparing Google Drive file for processing...' 
+    });
+
+    try {
+      const processingPayload = {
+        chatbotId,
+        userId,
+        integrationId,
+        fileId: file.id,
+        referenceId,
+      };
+      console.log('[IngestionProcess] Calling initiateGoogleDriveProcessing with:', processingPayload);
+      const processingResponse = await apiClient.initiateGoogleDriveProcessing(processingPayload);
+
+      updateTask(task.id, {
+        status: 'processing_queued',
+        currentStageMessage: 'Google Drive processing started. Downloading and converting...',
+        processingTaskId: processingResponse.task_identifier,
+        referenceId: processingResponse.reference_id || referenceId,
+        progress: 10,
+      });
+      console.log('[IngestionProcess] Google Drive processing initiated:', processingResponse);
+
+      // Add SSE connection for this task
+      addConnection(task.id, {
+        taskId: processingResponse.task_identifier,
+        type: 'processing',
+        frontendTaskId: task.id
+      });
+
+    } catch (apiError: any) {
+      console.error('[IngestionProcess] API error initiating Google Drive processing:', apiError);
+      updateTask(task.id, {
+        status: 'processing_failed',
+        currentStageMessage: `Failed to start Google Drive processing: ${apiError.message || 'API error'}`,
+        error: apiError.message || 'API error processing Google Drive file.',
+        progress: 0,
+      });
+    }
+  };
+
   const startMultimediaIngestion = async (file: File, conflictResolution: ConflictResolution = 'original', existingContentSourceId?: string) => {
     if (!userId) {
       console.error('[IngestionProcess] Cannot start multimedia ingestion: userId is not available.');
@@ -534,6 +599,7 @@ export function useContentIngestionProcess({ chatbotId, userId }: IngestionProce
     startDocumentIngestion, 
     startUrlIngestion,
     startMultimediaIngestion,
+    startGoogleDriveIngestion,
     activeConnections,
     handleSSEUpdate,
     handleSSEComplete,

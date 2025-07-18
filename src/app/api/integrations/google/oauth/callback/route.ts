@@ -112,6 +112,11 @@ export async function GET(request: NextRequest) {
     // 5. Calculate token expiry
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
+    // 6. Check if we got a refresh token
+    if (!tokenData.refresh_token) {
+      console.warn('No refresh token received from Google OAuth - user may need to re-authenticate');
+    }
+
     // 6. Check if this Google account is already connected by this user
     const { data: existingIntegration } = await supabaseAdminClient
       .from('connected_integrations')
@@ -136,6 +141,9 @@ export async function GET(request: NextRequest) {
         access_token: encrypted!.access_token_out,
         ...(encrypted!.refresh_token_out && { refresh_token: encrypted!.refresh_token_out }),
         token_expiry: expiresAt.toISOString(),
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        token_uri: 'https://oauth2.googleapis.com/token',
+        scopes: tokenData.scope?.split(' ') || [],
       },
     };
 

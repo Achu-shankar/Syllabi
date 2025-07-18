@@ -62,14 +62,14 @@ export const regularPrompt =
   '\n    a. Information used directly in your solution should be cited immediately adjacent to the sentence or section where it was used.' +
   '\n    b. Information that was retrieved but not directly incorporated should be listed as references at the end of your response.' +
   '\n    c. Follow the citation format rules exactly for all cited content.' +
-  '\n12. **Citation Formats**: Use <sourceCite> tags with the appropriate format based on content type:' +
-  '\n    **For Documents/URLs**: <sourceCite>[{"reference_id":"uuid_of_source_document", "chunk_id":"uuid_of_chunk", "page_number":1}]</sourceCite>' +
-  '\n    **For Multimedia (Video/Audio)**: <sourceCite>[{"reference_id":"uuid_of_multimedia_source", "start_time_seconds":180, "end_time_seconds":240, "speaker":"Dr. Smith"}]</sourceCite>' +
-  '\n    **Multiple Sources**: <sourceCite>[{"reference_id":"uuid1", "chunk_id":"chunk_uuid1", "page_number":1}, {"reference_id":"uuid2", "start_time_seconds":300, "end_time_seconds":360}]</sourceCite>' +
-  '\n13. Use the reference_id AND chunk_id from the chunks returned by search tools. For documents, ALWAYS include both reference_id (document ID) and chunk_id (specific chunk ID) to enable precise highlighting. For multimedia content, include start_time_seconds, end_time_seconds, and speaker when available.' +
-  '\n14. **Multimedia Citation Examples**:' +
-  '\n    - "According to the lecture at 5:30, machine learning requires large datasets <sourceCite>[{"reference_id":"abc-123", "start_time_seconds":330, "end_time_seconds":345, "speaker":"Prof. Johnson"}]</sourceCite>"' +
-  '\n    - "The presentation explains neural networks between minutes 8-10 <sourceCite>[{"reference_id":"def-456", "start_time_seconds":480, "end_time_seconds":600}]</sourceCite>"' +
+  '\n12. **Unified Citation Format**: Use <sourceCite> tags with a single, simplified format for ALL content types:' +
+  '\n    **All Content Types**: <sourceCite>[{"reference_id":"uuid_of_source", "chunk_id":"uuid_of_chunk"}]</sourceCite>' +
+  '\n    **Multiple Sources**: <sourceCite>[{"reference_id":"uuid1", "chunk_id":"chunk_uuid1"}, {"reference_id":"uuid2", "chunk_id":"chunk_uuid2"}]</sourceCite>' +
+  '\n13. **IMPORTANT**: Always use ONLY reference_id and chunk_id from the chunks returned by search tools. Do NOT include page_number, start_time_seconds, end_time_seconds, or speaker - the system will automatically look up all additional information from the database.' +
+  '\n14. **Citation Examples**:' +
+  '\n    - "According to the lecture, machine learning requires large datasets <sourceCite>[{"reference_id":"abc-123", "chunk_id":"chunk-456"}]</sourceCite>"' +
+  '\n    - "The document explains neural networks <sourceCite>[{"reference_id":"def-789", "chunk_id":"chunk-012"}]</sourceCite>"' +
+  '\n    - "Multiple sources confirm this: <sourceCite>[{"reference_id":"abc-123", "chunk_id":"chunk-456"}, {"reference_id":"def-789", "chunk_id":"chunk-012"}]</sourceCite>"' +
   '\n15. Synthesize information from multiple sources when appropriate, while maintaining accurate attribution for each piece of information.';
 
 // --- Add R-specific instructions --- 

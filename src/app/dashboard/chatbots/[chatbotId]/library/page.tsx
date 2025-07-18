@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/core';
 import FileUploadModal from './components/FileUploadModal';
 import UrlInputModal from './components/UrlInputModal';
+import GoogleDriveModal from './components/GoogleDriveModal';
 import ContentSourcesTable from './components/ContentSourcesTable';
 import TaskProgressGlobalDisplay from './components/TaskProgressGlobalDisplay';
 import FolderList from './components/FolderList';
@@ -75,12 +76,14 @@ export default function ChatbotLibraryPage() {
     startDocumentIngestion, 
     startUrlIngestion,
     startMultimediaIngestion,
+    startGoogleDriveIngestion,
     activeConnections,
     handleSSEUpdate,
     handleSSEComplete,
     handleSSEError,
     sseOnCloseHandler
   } = useContentIngestionProcess({ chatbotId, userId: userId || '' });
+
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -495,7 +498,27 @@ export default function ChatbotLibraryPage() {
                   >
                     <Link className="h-4 w-4" />
                     Add URL
-        </Button>
+                  </Button>
+                  <GoogleDriveModal
+                    chatbotId={chatbotId}
+                    onFilesSelected={async (files, integrationId) => {
+                      // Use the unified ingestion process for each selected file
+                      for (const file of files) {
+                        await startGoogleDriveIngestion(file, integrationId);
+                      }
+                    }}
+                    trigger={
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm0 2h7v5h5v11H6V4z"/>
+                        </svg>
+                        Google Drive
+                      </Button>
+                    }
+                  />
       </div>
 
                 {/* Right side - Search and Filter */}
