@@ -1,0 +1,24 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+redis
+celery
+supabase
+python-dotenv
+markdown2>=2.4.0
+WeasyPrint>=50.0 # Check for latest, be mindful of system dependencies
+fpdf2>=2.5.0
+# PyMuPDF # Removed as per plan
+
+# Added for indexing pipeline
+pdfplumber>=0.10.0 # Check for latest stable version
+openai>=1.0.0 # Check for latest stable version for OpenAI API v1+
+tiktoken>=0.5.0 # For token counting with OpenAI models
+
+# Added for multimedia processing
+pydub>=0.25.0 # For audio processing and chunking
+google-api-python-client 
+google-auth-httplib2 
+google-auth-oauthlib
+google-auth # For credentials handling
