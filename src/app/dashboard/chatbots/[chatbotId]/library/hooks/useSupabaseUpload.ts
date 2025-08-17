@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client'; // Ensure this path is correct
-import { v4 as uuidv4 } from 'uuid';
 
 interface UseSupabaseUploadOptions {
   bucketName?: string;

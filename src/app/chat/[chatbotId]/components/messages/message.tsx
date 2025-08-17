@@ -1,7 +1,6 @@
 'use client';
 
 import type { UIMessage } from 'ai';
-import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
 // import type { Vote } from '@/lib/db/schema';

@@ -4,11 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import {
   getAvailableSkills,
   createSkill,
-  updateSkill,
-  deleteSkill,
   isSkillNameUnique,
   type CreateSkillInput,
-  type UpdateSkillInput,
 } from '@/app/dashboard/libs/skills_db_queries_v2';
 
 // Validation schemas

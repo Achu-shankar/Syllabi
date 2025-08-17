@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Pencil, Trash2, MessageSquare, MoreHorizontal } from 'lucide-react';
+import { Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useFetchSessionList, useDeleteSession, useRenameSession } from '../../lib/hooks';
 import type { ChatSession } from '../../lib/db/queries';
-import { formatDistanceToNow } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/utils/supabase/client';

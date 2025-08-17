@@ -1,6 +1,6 @@
 'use client';
 
-import type { Attachment, UIMessage } from 'ai';
+import type { UIMessage } from 'ai';
 import cx from 'classnames';
 import type React from 'react';
 import {
@@ -8,24 +8,19 @@ import {
   useEffect,
   useState,
   useCallback,
-  type Dispatch,
-  type SetStateAction,
-  type ChangeEvent,
   memo,
 } from 'react';
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
-import { ArrowUpIcon, PaperclipIcon, StopIcon, SendIcon, DocIcon } from './icons';
+import { PaperclipIcon, StopIcon, SendIcon, DocIcon } from './icons';
 // import { PreviewAttachment } from './preview-attachment'; // FUTURE: Re-enable for file uploads
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { SuggestedActions } from './suggested-actions';
-import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { useContentSources } from '../lib/hooks/useContentSources';
 import { Search, X } from 'lucide-react';

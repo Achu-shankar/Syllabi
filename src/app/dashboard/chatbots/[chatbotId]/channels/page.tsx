@@ -1,6 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Link2, PlusCircle, Trash2 } from 'lucide-react';
@@ -9,7 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { toast } from 'sonner';
 import Image from 'next/image';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 

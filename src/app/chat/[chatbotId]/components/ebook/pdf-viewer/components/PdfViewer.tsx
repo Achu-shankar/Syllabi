@@ -2,7 +2,6 @@
 
 import React, { useRef, useEffect, useCallback, memo, forwardRef, useImperativeHandle } from 'react';
 import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
 
 import { CorePdfViewerPdfJsRef } from './CorePdfViewerPdfJs';
 import { usePdfViewerStore } from '../store/pdfViewerStore';

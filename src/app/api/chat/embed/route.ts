@@ -15,7 +15,6 @@ import {
   getTrailingMessageId,
 } from '@/app/chat/[chatbotId]/lib/utils';
 
-import { createClient } from '@/utils/supabase/server';
 import { resolveClientBySlug } from '@/utils/supabase/resolveClient';
 import { saveOrUpdateChatMessages, getChatbotConfig } from '@/app/chat/[chatbotId]/lib/db/queries';
 import { calculateTokenCost } from '@/app/chat/[chatbotId]/lib/token-utils';

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useChat, type Message } from '@ai-sdk/react';
-import { createClient } from '@/utils/supabase/client';
 
 import { generateUUID } from '@/app/chat/[chatbotId]/lib/utils';
 import { EmbeddedGreeting } from './EmbeddedGreeting';

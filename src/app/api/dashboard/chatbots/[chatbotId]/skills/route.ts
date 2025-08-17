@@ -4,9 +4,6 @@ import { createClient } from '@/utils/supabase/server';
 import {
   getSkillsForChatbot,
   createSkillAssociation,
-  updateSkillAssociation,
-  deleteSkillAssociation,
-  type CreateAssociationInput,
 } from '@/app/dashboard/libs/skills_db_queries_v2';
 
 // Validation schemas

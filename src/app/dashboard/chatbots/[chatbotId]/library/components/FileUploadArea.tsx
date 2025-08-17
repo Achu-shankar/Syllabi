@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, X, Loader2, AlertTriangle, Video, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';

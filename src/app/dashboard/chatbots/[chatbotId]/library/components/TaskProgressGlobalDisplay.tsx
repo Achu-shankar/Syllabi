@@ -13,8 +13,6 @@ import {
   Settings2 as SettingsIcon,
   CheckCircle2 as CheckCircleIcon,
   AlertCircle as AlertCircleIcon,
-  Trash2 as TrashIcon,
-  RefreshCw as RetryIcon,
   Loader2,
   Video,
   Music,

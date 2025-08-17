@@ -1,5 +1,5 @@
 'use client';
-import { notFound, useParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ChatArea from "../components/ChatArea";
 import { useFetchInitialMessages } from "../lib/hooks";
 import { useEffect } from "react";

@@ -4,7 +4,7 @@ import { useCopyToClipboard } from 'usehooks-ts';
 
 // import type { Vote } from '@/lib/db/schema';
 
-import { CopyIcon, ThumbDownIcon, ThumbUpIcon } from '../icons';
+import { CopyIcon } from '../icons';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -13,7 +13,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { memo } from 'react';
-import equal from 'fast-deep-equal';
 import { toast } from 'sonner';
 
 export function PureMessageActions({

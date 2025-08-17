@@ -1893,7 +1893,7 @@ var _RObject = class extends RObjectBase {
     const names = this.names();
     return names && names.includes(name);
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   toJs(options = { depth: 0 }, depth = 1) {
     throw new Error("This R object cannot be converted to JS");
   }

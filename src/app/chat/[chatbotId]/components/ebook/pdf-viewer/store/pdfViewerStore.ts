@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Annotation, ProgrammaticHighlight, ActiveTool, SearchOptions as CoreSearchOptions } from '../types';
+import { ProgrammaticHighlight, ActiveTool, SearchOptions as CoreSearchOptions } from '../types';
 import { Annotation as AnnotationLayerAnnotation } from '../components/AnnotationLayer';
 import type { CorePdfViewerPdfJsRef } from '../components/CorePdfViewerPdfJs';
 

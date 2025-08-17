@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '../../../../utils/supabase/server'; // Server-side Supabase client
 import {
-  createChatbot,
   getChatbotsByUserId,
   type CreateChatbotPayload,
 } from '@/app/dashboard/libs/queries'; // Adjusted path

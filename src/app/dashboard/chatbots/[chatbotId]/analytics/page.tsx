@@ -1,23 +1,18 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   BarChart3, 
-  LineChart, 
   MessageSquare, 
   Users, 
   Clock, 
   FileText,
-  TrendingUp,
-  Calendar,
   Activity,
   CheckCircle,
   XCircle,
@@ -26,10 +21,9 @@ import {
 import { useParams } from 'next/navigation';
 import { useFetchChatbotDetails } from '../hooks/useChatbotSettings';
 import { useChatbotAnalytics, TimeRange } from '../hooks/useChatbotAnalytics';
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, XAxis, YAxis } from 'recharts';
 import { RainbowButton } from '@/components/magicui/rainbow-button';
 import { cn } from '@/lib/utils';
-import { GlowEffect } from '@/components/ui/glow-effect';
 
 export default function ChatbotAnalyticsPage() {
   const params = useParams();

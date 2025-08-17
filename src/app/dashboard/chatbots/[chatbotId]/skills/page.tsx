@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Filter, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useParams } from 'next/navigation';
 import { useSkills } from './hooks/useSkills';

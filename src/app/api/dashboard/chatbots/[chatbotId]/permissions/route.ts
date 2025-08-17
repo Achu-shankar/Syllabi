@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '../../../../../../utils/supabase/server';
-import { ChatbotPermission, ChatbotRole } from '../../../../../dashboard/libs/queries';
+import { ChatbotRole } from '../../../../../dashboard/libs/queries';
 
 interface RouteParams {
   params: Promise<{

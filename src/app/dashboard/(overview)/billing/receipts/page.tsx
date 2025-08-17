@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download } from 'lucide-react'; // Example icon
+// Example icon
 
 export default function ReceiptsPage() {
   return (

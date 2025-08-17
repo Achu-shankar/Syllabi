@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -24,10 +24,8 @@ import {
 import { 
   Search, 
   Plus, 
-  Filter, 
   X, 
-  Library, 
-  Zap,
+  Library,
   Globe,
   User,
   AlertTriangle 

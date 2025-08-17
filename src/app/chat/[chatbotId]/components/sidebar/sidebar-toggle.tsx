@@ -1,6 +1,5 @@
 'use client';
 
-import type { ComponentProps } from 'react';
 
 import { useSidebar } from '@/components/ui/sidebar';
 import {

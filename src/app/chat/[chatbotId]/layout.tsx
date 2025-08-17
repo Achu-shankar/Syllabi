@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
 import { AppSidebar } from "./components/sidebar/app-sidebar";
-import { ThemeProvider } from "next-themes";
 import { useParams } from 'next/navigation';
 import {
   SidebarInset,
@@ -12,14 +11,13 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import AuthButton from '@/components/header-auth';
 import { EbookProvider, useEbookContext } from './lib/context/ebook-context';
 import { ChatbotProvider } from '../contexts/ChatbotContext'; // Import ChatbotProvider
 import { ChatThemeProvider } from '../contexts/ChatbotThemeContext'; // Import ChatThemeProvider
 import { ThemeApplicator, useChatThemeVars } from './components/ThemeApplicator'; // Import ThemeApplicator and theme vars hook
 import { ChatbotNotFound } from './components/ChatbotNotFound'; // Import ChatbotNotFound
 import { ChatbotLoading } from './components/ChatbotLoading'; // Import ChatbotLoading
-import { ChatThemeSwitcher } from './components/ChatThemeSwitcher'; // Import ChatThemeSwitcher
+// Import ChatThemeSwitcher
 import { useChatConfig } from '../contexts/ChatbotContext'; // Import hook to check chatbot state
 import EbookPanel from './components/ebook/EbookPanel';
 import './chat.css'; // Import chat-specific CSS overrides

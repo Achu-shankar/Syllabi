@@ -27,10 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skill } from '@/app/dashboard/libs/skills_db_queries_v2';
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from '@/components/ui/tooltip';
 
 interface SkillWithAssociation extends Skill {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, memo } from 'react';
 import type { Message } from '@ai-sdk/react'; // Import Message type
 import { ScrollArea } from "@/components/ui/scroll-area"; // Assuming shadcn/ui ScrollArea
-import { Bot, User, LoaderIcon, Paperclip } from 'lucide-react'; // Icons for roles and LoaderIcon
+import { Bot, User, Paperclip } from 'lucide-react'; // Icons for roles and LoaderIcon
 import Image from 'next/image'; // For rendering image attachments
 
 // Import the new memoized component

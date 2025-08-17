@@ -1,5 +1,4 @@
 // Simulate API calls for Phase 3 - Now to be actual API calls
-import { v4 as uuidv4 } from 'uuid';
 
 // TODO: Get this from environment variables or a config file
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000/api/v1'; 

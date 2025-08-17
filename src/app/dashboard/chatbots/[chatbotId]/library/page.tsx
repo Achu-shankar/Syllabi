@@ -22,7 +22,7 @@ import FolderList from './components/FolderList';
 import SSEConnectionManager from './components/SSEConnectionManager';
 import { useContentIngestionProcess } from './hooks/useContentIngestionProcess';
 import { Button } from '@/components/ui/button';
-import { Upload, Link, Plus, Search, Filter, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Upload, Link, Search, Filter, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useContentSourcesByFolder, useMoveContentSource, useChatbotFolders } from './lib/hooks';

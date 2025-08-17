@@ -2,7 +2,7 @@
 
 import { Card, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ExternalLink, Trash2, Loader2 } from 'lucide-react';
+import { ExternalLink, Trash2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { IntegrationConnection } from '../hooks/use-integrations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';

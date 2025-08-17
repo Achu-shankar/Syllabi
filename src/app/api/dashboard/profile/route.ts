@@ -3,8 +3,7 @@ import { createClient } from '../../../../utils/supabase/server';
 import {
   updateUserProfile,
   getUserProfile,
-  type UpdateProfilePayload,
-  type Profile
+  type UpdateProfilePayload
 } from '../../../dashboard/libs/queries';
 
 // GET Handler for fetching user profile

@@ -3,7 +3,6 @@ import { createClient } from '../../../../../utils/supabase/server'; // Adjusted
 import {
   updateChatbot,
   deleteChatbot,
-  type Chatbot,
   type UpdateChatbotPayload,
   getChatbotById
 } from '../../../../dashboard/libs/queries'; // Adjusted path to queries

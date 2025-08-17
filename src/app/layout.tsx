@@ -4,7 +4,6 @@ import "./globals.css";
 import Script from 'next/script';
 import { GA_TRACKING_ID } from '@/utils/analytics';
 import { Providers } from "./providers";
-import { Inter as FontSans } from 'next/font/google'
 import { Inter } from "next/font/google"; // 1. Import Inter
 
 // const fontSans = FontSans({

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { PlusIcon, MessageSquareText, AlertCircle, Link, MoreHorizontal, Bell, MessageSquare } from 'lucide-react';
+import { PlusIcon, MessageSquareText, AlertCircle, Bell, MessageSquare } from 'lucide-react';
 import { SidebarHistory } from './sidebar-history';
 import { SidebarUserNav } from './sidebar-user-nav';
 import {

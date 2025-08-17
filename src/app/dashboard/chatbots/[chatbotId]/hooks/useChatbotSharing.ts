@@ -4,8 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   ChatbotVisibility, 
   ChatbotPermission, 
-  UserSearchResult,
-  UpdateChatbotPayload 
+  UserSearchResult 
 } from '@/app/dashboard/libs/queries';
 import { toast } from "sonner";
 import { getProductionBaseUrl } from '@/utils/url';

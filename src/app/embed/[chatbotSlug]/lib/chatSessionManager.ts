@@ -1,5 +1,4 @@
 import { generateUUID } from '@/app/chat/[chatbotId]/lib/utils';
-import { type Message } from '@ai-sdk/react';
 
 export interface ChatSession {
   id: string;

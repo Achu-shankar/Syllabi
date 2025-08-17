@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createServiceClient } from '@/utils/supabase/service';
-import { WebClient } from '@slack/web-api';
-import { v4 as uuidv4 } from 'uuid';
 
 interface SlackOAuthResponse {
   ok: boolean;

@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from "@/components/ui/switch";
 import { useFetchChatbotDetails, useUpdateChatbotSettings } from '../../hooks/useChatbotSettings';
-import { UpdateChatbotPayload, Chatbot, ChatbotVisibility } from '@/app/dashboard/libs/queries';
+import { UpdateChatbotPayload, ChatbotVisibility } from '@/app/dashboard/libs/queries';
 import { Separator } from "@/components/ui/separator";
 
 // Zod schema for validation

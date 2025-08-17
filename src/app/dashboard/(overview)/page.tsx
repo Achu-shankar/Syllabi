@@ -1,7 +1,7 @@
 "use client"; // If we plan to have client-side interactions like fetching data, forms etc.
 
 import React, { useState, useMemo } from 'react'; // Added useMemo for filtering
-import Link from 'next/link'; // Added for future navigation
+// Added for future navigation
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input"; // Added Input component
 import { RainbowButton } from "@/components/magicui/rainbow-button";

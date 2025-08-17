@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateChatbot } from "../hooks/useCreateChatbot";
-import { CreateChatbotPayload, ThemeConfig } from '@/app/dashboard/libs/queries';
+import { CreateChatbotPayload } from '@/app/dashboard/libs/queries';
 import { predefinedThemes } from '@/app/dashboard/chatbots/[chatbotId]/settings/appearance/themes';
 import { Loader2 } from 'lucide-react'; // For loading spinner
 import { toast } from "sonner"; // Import toast from sonner

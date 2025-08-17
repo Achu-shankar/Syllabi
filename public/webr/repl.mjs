@@ -3922,7 +3922,7 @@
             if (value != null) {
               if (type === "number") {
                 if (value === 0 && node.value === "" || // We explicitly want to coerce to number here if possible.
-                // eslint-disable-next-line
+                 
                 node.value != value) {
                   node.value = toString(value);
                 }
@@ -67402,7 +67402,7 @@ WARNING: This link could potentially be dangerous`)) {
       const names = this.names();
       return names && names.includes(name2);
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     toJs(options = { depth: 0 }, depth = 1) {
       throw new Error("This R object cannot be converted to JS");
     }

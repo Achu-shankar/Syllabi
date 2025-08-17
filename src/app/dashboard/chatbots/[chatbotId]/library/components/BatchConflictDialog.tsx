@@ -10,9 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, FileText, Copy, X, RotateCcw } from 'lucide-react';
+import { AlertTriangle, FileText, Copy, X } from 'lucide-react';
 import { ContentSource } from '../lib/queries';
-import { type ConflictResolution } from '../hooks/useSupabaseUpload';
 
 export type BatchConflictResolution = 'replace-all' | 'keep-all' | 'skip-all' | 'review-individually';
 

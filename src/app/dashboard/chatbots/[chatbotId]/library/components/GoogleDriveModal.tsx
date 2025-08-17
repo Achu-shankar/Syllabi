@@ -6,10 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Folder, 
@@ -19,17 +17,12 @@ import {
   FileVideo, 
   FileAudio,
   Search,
-  Upload,
   ChevronRight,
-  ChevronDown,
   RefreshCw,
   AlertCircle,
-  CheckCircle2,
-  Clock,
   FolderOpen,
   ExternalLink
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface GoogleDriveFile {

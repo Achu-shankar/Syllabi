@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, Download, ExternalLink, Check } from 'lucide-react';
+import { Copy, Download, Check } from 'lucide-react';
 import { BubbleConfig } from '../types/chatBubble';
 import { BUBBLE_TEMPLATES } from '../libs/chatBubbleTemplates';
 

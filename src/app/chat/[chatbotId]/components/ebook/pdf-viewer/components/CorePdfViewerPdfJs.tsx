@@ -16,10 +16,10 @@ if (typeof window !== 'undefined') {
   }
 }
 
-import { Annotation, ProgrammaticHighlight, ActiveTool, SearchOptions as ViewerSearchOptions, BoundingBox, PdfPoint } from '../types/'; // Assuming all types are in one place
+// Assuming all types are in one place
 import PageContent from './PageContent'; // <-- Import PageContent
 import { Loader2 } from 'lucide-react';
-import { usePdfViewerStore, SearchMatch, SearchOptions } from '../store/pdfViewerStore'; // <-- Import from store
+import { usePdfViewerStore } from '../store/pdfViewerStore'; // <-- Import from store
 import { Annotation as AnnotationLayerAnnotation } from './AnnotationLayer';
 
 export interface CorePdfViewerPdfJsProps {

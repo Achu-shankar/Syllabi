@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 
 export default function RootPage() {
   // redirect('/das?hboard/charots')

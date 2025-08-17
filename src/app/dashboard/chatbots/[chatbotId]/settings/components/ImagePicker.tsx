@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ImageIcon, UploadCloudIcon, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { ImageIcon, UploadCloudIcon, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { PresetAvatar } from './avatarPresets';
 import { toast } from 'sonner';

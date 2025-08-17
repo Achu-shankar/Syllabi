@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, memo, useCallback, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, Send, StopCircle, LoaderIcon, XIcon } from 'lucide-react'; // Import necessary icons
+import { Paperclip, Send, StopCircle, XIcon } from 'lucide-react'; // Import necessary icons
 import type { Attachment } from 'ai'; // Assuming Attachment type is needed
 import { toast } from 'sonner'; // Keep toast import
 

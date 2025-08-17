@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useChatTheme } from '../../contexts/ChatbotThemeContext';
 import { useChatbotTheme } from '../../contexts/ChatbotContext';
-import { ThemeColors, EnhancedThemeConfig } from '../../contexts/ChatbotContext';
+import { ThemeColors } from '../../contexts/ChatbotContext';
 
 /**
  * ThemeApplicator component that applies chatbot theme colors as CSS variables

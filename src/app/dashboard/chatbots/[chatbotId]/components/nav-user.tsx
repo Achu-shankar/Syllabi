@@ -8,17 +8,12 @@ import {
   CreditCard,
   LogOut,
   UserCircle as AccountIcon, // Renamed for clarity if UserCircle is also a nav icon
-  ChevronsUpDown,
-  Settings2 as SettingsIcon, // Example if you have a general settings page too
-  Bell // For Notifications if needed
+  ChevronsUpDown // For Notifications if needed
 } from "lucide-react";
 import BoringAvatar from "boring-avatars"; // Assuming this is correctly installed and available
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+
+
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,6 +1,5 @@
 import "server-only";
 import { createClient } from '@/utils/supabase/server';
-import { UUID } from "crypto";
 import { Message } from "@ai-sdk/react";
 import { generateTitleFromUserMessage } from "../actions";
 

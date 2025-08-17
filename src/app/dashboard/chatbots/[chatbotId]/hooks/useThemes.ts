@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   AvailableThemes, 
-  DefaultTheme, 
   UserCustomTheme, 
   CreateCustomThemePayload, 
   UpdateCustomThemePayload,
