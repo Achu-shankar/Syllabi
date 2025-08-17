@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 import { MaximizeIcon, MinimizeIcon, ZoomInIcon, ZoomOutIcon, XIcon } from 'lucide-react'; // Assuming you have lucide-react
+import { TextShimmer } from '@/components/ui/text-shimmer';
 
 interface MermaidDisplayProps {
   mermaidCode: string;
@@ -19,7 +20,6 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
   const fullscreenMermaidContentRef = useRef<HTMLDivElement>(null); // Ref for the INNER div for fullscreen view
   
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [uniqueContentId, setUniqueContentId] = useState('');
   const [uniqueFullscreenContentId, setUniqueFullscreenContentId] = useState('');
   const [actualSvgLength, setActualSvgLength] = useState(0);
@@ -34,11 +34,15 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
 
+  // New state to hold rendering errors
+  const [renderError, setRenderError] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       mermaid.initialize({
         startOnLoad: false,
-        logLevel: 'debug', 
+        suppressErrorRendering: true,
+        // logLevel: 'fatal', // Change from 'debug' to 'fatal' to suppress UI errors
         theme: 'base',
       });
     } catch (e) {}
@@ -53,6 +57,13 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
+    
+    // Show loading immediately when mermaid code changes (during streaming)
+    if (mermaidCode.trim() && mermaidCode.trim() !== debouncedMermaidCode.trim()) {
+      setIsLoading(true);
+      setRenderError(null);
+    }
+    
     debounceTimeoutRef.current = setTimeout(() => {
       setDebouncedMermaidCode(mermaidCode);
     }, DEBOUNCE_DELAY);
@@ -61,7 +72,7 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [mermaidCode]);
+  }, [mermaidCode, debouncedMermaidCode]);
 
   const renderMermaidToDiv = useCallback(async (targetRef: React.RefObject<HTMLDivElement>, svgId: string, code: string) => {
     if (!targetRef.current || !code.trim() || !svgId) {
@@ -72,7 +83,7 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
     currentDiv.innerHTML = '';
 
     const lines = code.split('\n');
-    const tempProcessedCode = lines.length > 0 
+    let tempProcessedCode = lines.length > 0 
       ? lines[0] + '\n' + lines.slice(1).filter(line => line.trim() !== '').join('\n')
       : code;
     const finalCode = tempProcessedCode.replace(/\[([^\]]+)\]/g, (match, innerContent) => {
@@ -88,9 +99,10 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
       }
       return { success: true, svgLen: svg?.length || 0 };
     } catch (renderError: any) {
+      const errorMessage = renderError.message || 'Unknown error during rendering.';
       console.error(`[MermaidDisplay] Failed to render Mermaid diagram (ID: ${svgId}):`, renderError);
       if (currentDiv) currentDiv.innerHTML = ''; // Clear on error
-      return { success: false, svgLen: 0, errorMsg: renderError.message || 'Unknown error' };
+      return { success: false, svgLen: 0, errorMsg: errorMessage };
     }
   }, []);
 
@@ -100,11 +112,12 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
       if (!mermaidContentRef.current || !debouncedMermaidCode.trim() || !uniqueContentId) {
         setIsLoading(false); setActualSvgLength(0); return;
       }
-      setIsLoading(true); setError(null);
+      // Note: isLoading is already set to true in the debounce effect
+      setRenderError(null); // Reset error state on new render
       const result = await renderMermaidToDiv(mermaidContentRef as React.RefObject<HTMLDivElement>, uniqueContentId + '-svg', debouncedMermaidCode);
       setActualSvgLength(result.svgLen);
       if (!result.success) {
-        // Not setting error state to hide it, as per previous request for normal view
+        setRenderError(result.errorMsg || 'Failed to render diagram.');
       }
       setIsLoading(false);
     };
@@ -190,10 +203,10 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
 
   return (
     <div 
-      className="mermaid-container-wrapper my-4 p-1 relative" 
+      className="mermaid-container-wrapper my-4 p-1 relative rounded-lg" 
       style={{ 
-        backgroundColor: 'rgba(0, 255, 0, 0.05)', // Very subtle green background
-        border: '1px solid #e0e0e0', // Lighter border
+        backgroundColor: 'rgb(191, 243, 191)', // Consistent green background for both light and dark mode
+        border: '1px solid rgba(0, 255, 0, 0.2)', // Green-tinted border that works in both modes
         width: '100%',
         boxSizing: 'border-box'
       }}
@@ -210,9 +223,26 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
         )}
       </div>
 
-      {isLoading && <p style={{color: 'blue', fontSize: 'small', textAlign: 'center', padding: '20px'}}>Loading Diagram...</p>}
+      {isLoading && (
+        <div className="flex justify-center items-center py-8">
+          <TextShimmer 
+            className="text-xl font-semibold [--base-color:#9ca3af] [--base-gradient-color:#10b981] dark:[--base-color:#6b7280] dark:[--base-gradient-color:#34d399]" 
+            duration={1}
+            spread={2}
+          >
+            Generating Mermaid Diagram...
+          </TextShimmer>
+        </div>
+      )}
+      {/* Display rendering errors here */}
+      {renderError && (
+        <div className="p-4 text-red-600 bg-red-100 border border-red-300 rounded-md overflow-hidden">
+          <p className="font-semibold text-center">Mermaid Syntax Error</p>
+          <p className="text-sm mt-2 text-left break-words whitespace-pre-wrap">{renderError}</p>
+        </div>
+      )}
       {/* Error display is intentionally suppressed for normal view based on previous request */}
-      {!isLoading && actualSvgLength === 0 && debouncedMermaidCode.trim() && 
+      {!isLoading && !renderError && actualSvgLength === 0 && debouncedMermaidCode.trim() && 
         <p style={{color: 'orange', fontSize: 'small', textAlign: 'center', padding: '20px'}}>Rendered empty diagram. Check code.</p>}
       
       <div 
@@ -227,21 +257,22 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
       {/* Fullscreen Modal */}
       {isFullScreen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onMouseMove={handleMouseMove} onMouseUp={handleMouseUpOrLeave} onMouseLeave={handleMouseUpOrLeave} /* Attach mouse move/up/leave to the overlay for smoother panning when cursor leaves the diagram div */ >
-          <div className="bg-white dark:bg-gray-900 shadow-2xl rounded-lg w-full h-full max-w-[95vw] max-h-[95vh] flex flex-col overflow-hidden">
+          <div className="shadow-2xl rounded-lg w-full h-full max-w-[95vw] max-h-[95vh] flex flex-col overflow-hidden" >
             {/* Modal Header */}
             <div className="flex justify-between items-center p-3 border-b dark:border-gray-700">
               <div className="flex items-center space-x-2">
-                <button onClick={handleZoomOut} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="Zoom Out"><ZoomOutIcon size={20}/></button>
-                <button onClick={handleZoomIn} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="Zoom In"><ZoomInIcon size={20}/></button>
+                <button onClick={handleZoomOut} className="p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600" title="Zoom Out"><ZoomOutIcon size={20}/></button>
+                <button onClick={handleZoomIn} className="p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600" title="Zoom In"><ZoomInIcon size={20}/></button>
                 <span className="text-sm text-gray-600 dark:text-gray-400">{(zoomLevel * 100).toFixed(0)}%</span>
               </div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Diagram Fullscreen</h3>
-              <button onClick={toggleFullScreen} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="Close Fullscreen"><XIcon size={20}/></button>
+              <button onClick={toggleFullScreen} className="p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600" title="Close Fullscreen"><XIcon size={20}/></button>
             </div>
             {/* Modal Content - SVG will go here */}
             <div 
               className="flex-grow p-4 overflow-auto flex items-center justify-center"
-              style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+              style={{ cursor: isPanning ? 'grabbing' : 'grab', backgroundColor: 'rgb(191, 243, 191)' }}
+              // style={{  }}
               onWheel={handleWheelZoom} // Attach wheel zoom handler here
             >
               <div 
