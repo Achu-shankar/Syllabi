@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getContentSourceById } from '@/app/chat/[chatbotId]/lib/db/content_queries';
+import { createServiceClient } from '@/utils/supabase/service';
 
 export async function GET(
   request: NextRequest,
@@ -46,9 +47,29 @@ export async function GET(
     // Note: Based on the backend implementation, all files (documents, URLs, and multimedia)
     // are stored in the 'documents' bucket in Supabase
 
+    // Fetch chatbot visibility
+    const userSupabase = await createClient();
+    const { data: chatbotData, error: chatbotError } = await userSupabase
+      .from('chatbots')
+      .select('visibility')
+      .eq('id', contentSource.chatbot_id)
+      .single();
+
+    if (chatbotError || !chatbotData) {
+      console.error('[Content View API] Failed to fetch chatbot visibility:', chatbotError);
+      return new Response('Failed to verify chatbot access', { status: 403 });
+    }
+
+    let supabase;
+    if (chatbotData.visibility === 'public' || chatbotData.visibility === 'shared') {
+      supabase = createServiceClient();
+      console.log(`[Content View API] Using service client for ${chatbotData.visibility} chatbot`);
+    } else {
+      supabase = userSupabase;
+      console.log(`[Content View API] Using user client for private chatbot`);
+    }
+
     // Create Supabase client and generate signed URL
-    const supabase = await createClient();
-    
     console.log(`[Content View API] Generating signed URL for storage path: ${contentSource.storage_path} in bucket: ${storageBucket}`);
     
     const { data: signedUrlData, error } = await supabase.storage
