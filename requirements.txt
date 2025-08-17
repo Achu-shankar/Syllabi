@@ -22,3 +22,6 @@ google-api-python-client
 google-auth-httplib2 
 google-auth-oauthlib
 google-auth # For credentials handling
+
+# Added for Notion integration
+notion-client>=2.0.0 # Official Notion Python SDK

@@ -16,6 +16,6 @@ REM Start Celery worker in a new window
 start "Celery" cmd /k "conda activate %ENV_NAME% && celery -A %CELERY_MODULE% worker -P solo --loglevel=info"
 
 @REM REM start Redis docker container in a new window
-@REM start "Redis" cmd /k "conda activate %ENV_NAME% && docker run -d --name redis-container -p 6379:6379 redis:latest"
+start "Redis" cmd /k "conda activate %ENV_NAME% && docker run -d --name redis-container -p 6379:6379 redis:latest"
 @REM echo Both Uvicorn and Celery should now be running in separate windows.
 pause

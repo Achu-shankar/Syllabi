@@ -11,7 +11,8 @@ celery_app = Celery(
              'app.worker.tasks_indexing',
              'app.worker.tasks_multimedia',
              'app.worker.tasks_multimedia_indexing',
-             'app.worker.tasks_google_drive_simple'
+             'app.worker.tasks_google_drive_simple',
+             'app.worker.tasks_notion_simple'
              ]
 )
 

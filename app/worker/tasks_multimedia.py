@@ -134,12 +134,12 @@ def process_multimedia_task(
         
         # Prepare metadata for storage
         metadata_dict = metadata.dict()
-        metadata_dict["ingestion_source"] = IngestionSourceEnum.FILE_UPLOAD.value
         metadata_dict["media_type"] = media_type
         
         content_source_to_create = ContentSourceCreate(
             chatbot_id=chatbot_uuid,
             source_type=source_type,
+            ingestion_source=IngestionSourceEnum.FILE_UPLOAD,
             file_name=filename,
             storage_path=file_path,
             title=os.path.splitext(filename)[0] if filename else f"{media_type.title()} Content",

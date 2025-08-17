@@ -11,6 +11,7 @@ class IngestionSourceEnum(str, Enum):
     FILE_UPLOAD = "FILE_UPLOAD"
     URL_SUBMISSION = "URL_SUBMISSION"
     GOOGLE_DRIVE = "GOOGLE_DRIVE"
+    NOTION = "NOTION"
 
 class OriginalFileFormatEnum(str, Enum):
     PDF = "PDF"

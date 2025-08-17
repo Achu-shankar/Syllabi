@@ -247,11 +247,12 @@ async def async_process_document_task(task_identifier: str, reference_id: str, f
         content_source_to_create = ContentSourceCreate(
             chatbot_id=chatbot_uuid,
             source_type=source_type,
+            ingestion_source=IngestionSourceEnum.FILE_UPLOAD,
             file_name=original_file_name,
             storage_path=final_pdf_storage_path_for_pipeline,
             title=os.path.splitext(original_file_name)[0],  # Use filename without extension as title
             indexing_status=IndexingStatusEnum.PENDING,  # Set to pending since we're not indexing yet
-            metadata={"original_file_size_bytes": original_file_size_bytes, "ingestion_source": IngestionSourceEnum.FILE_UPLOAD.value}
+            metadata={"original_file_size_bytes": original_file_size_bytes}
         )
         
         logger.info(f"[Task ID: {task_uuid}] Creating content source record. Title: '{content_source_to_create.title}', SourceType: {content_source_to_create.source_type.value}")

@@ -234,6 +234,7 @@ async def execute_shared_pdf_processing_pipeline(
         content_source_to_create = ContentSourceCreate(
             chatbot_id=chatbot_id,
             source_type=source_type,
+            ingestion_source=ingestion_source,
             file_name=original_input_name,
             storage_path=final_pdf_storage_path,
             title=reference_title,

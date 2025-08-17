@@ -380,13 +380,13 @@ async def _async_process_url_task_actual(task_identifier: str, reference_id: str
         content_source_to_create = ContentSourceCreate(
             chatbot_id=chatbot_uuid,
             source_type=source_type,
+            ingestion_source=IngestionSourceEnum.URL_SUBMISSION,
             file_name=os.path.basename(final_pdf_storage_path_for_pipeline),
             storage_path=final_pdf_storage_path_for_pipeline,
             title=url_to_process,  # Use URL as title
             indexing_status=IndexingStatusEnum.PENDING,  # Set to pending since we're not indexing yet
             metadata={
                 "original_file_size_bytes": original_file_size_bytes, 
-                "ingestion_source": IngestionSourceEnum.URL_SUBMISSION.value,
                 "original_url": url_to_process,
                 "original_format": current_original_file_format.value if current_original_file_format else None
             }

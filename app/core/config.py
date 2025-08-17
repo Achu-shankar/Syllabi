@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # Google OAuth Configuration
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
+    
+    # Notion OAuth Configuration
+    NOTION_CLIENT_ID: Optional[str] = None
+    NOTION_CLIENT_SECRET: Optional[str] = None
 
     # Chunking settings
     MIN_TOKENS_PER_CHUNK: int = 30
