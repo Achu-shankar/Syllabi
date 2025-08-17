@@ -46,9 +46,9 @@ const PurePreviewMessage = ({
   // Get avatar URLs from theme or use defaults
   const getAvatarUrl = (role: 'user' | 'assistant') => {
     if (role === 'assistant') {
-      return chatbot?.theme?.aiMessageAvatarUrl || null;
+      return chatbot?.theme?.config?.aiMessageAvatarUrl || null;
     } else {
-      return chatbot?.theme?.userMessageAvatarUrl || null;
+      return chatbot?.theme?.config?.userMessageAvatarUrl || null;
     }
   };
 
@@ -259,7 +259,7 @@ export const ThinkingMessage = () => {
 
   // Get avatar URL from theme or use default
   const getAvatarUrl = () => {
-    return chatbot?.theme?.aiMessageAvatarUrl || '/logo.png';
+    return chatbot?.theme?.config?.aiMessageAvatarUrl || '/logo.png';
   };
 
   return (

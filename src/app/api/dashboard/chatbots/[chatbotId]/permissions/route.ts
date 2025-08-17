@@ -3,9 +3,9 @@ import { createClient } from '../../../../../../utils/supabase/server';
 import { ChatbotPermission, ChatbotRole } from '../../../../../dashboard/libs/queries';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     chatbotId: string;
-  };
+  }>;
 }
 
 // GET - List all permissions for a chatbot

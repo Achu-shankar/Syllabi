@@ -13,10 +13,10 @@ import {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
-    const { chatbotId } = params;
+    const { chatbotId } = await params;
 
     // Verify user has access to this chatbot
     const supabase = await createClient();
@@ -79,10 +79,10 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
-    const { chatbotId } = params;
+    const { chatbotId } = await params;
     const body = await request.json();
 
     // Verify user has access to this chatbot

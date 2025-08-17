@@ -450,7 +450,7 @@ export default function EbookReader() {
             )}
 
             {/* Content Viewer Area */}
-            <div className="flex-grow relative">
+            <div className="flex-grow min-h-0 relative">
                 {currentDocument ? (
                     <div className="w-full h-full">
                         {isCurrentDocumentMultimedia ? (

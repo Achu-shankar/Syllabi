@@ -468,7 +468,7 @@ export async function updateChatbot(
   ): Promise<Chatbot> {
     const supabase = await createClient();
   
-    let payload = { ...updates }; // No need to manually set updated_at if DB trigger is reliable
+    const payload = { ...updates }; // No need to manually set updated_at if DB trigger is reliable
 
     // If updating name/student_facing_name and no explicit slug update, regenerate slug
     const isNameUpdating = updates.student_facing_name !== undefined || updates.name !== undefined;

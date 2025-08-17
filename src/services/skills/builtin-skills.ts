@@ -272,7 +272,7 @@ const textUtilsSkill: BuiltinSkillTemplate = {
         description = 'Converted to lowercase';
         break;
       case 'title_case':
-        result = text.replace(/\w\S*/g, (txt) => 
+        result = text.replace(/\w\S*/g, (txt: string) => 
           txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
         );
         description = 'Converted to title case';
@@ -282,7 +282,7 @@ const textUtilsSkill: BuiltinSkillTemplate = {
         description = 'Reversed the text';
         break;
       case 'word_count':
-        result = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+        result = text.trim().split(/\s+/).filter((word: string) => word.length > 0).length;
         description = 'Counted words';
         break;
       case 'char_count':

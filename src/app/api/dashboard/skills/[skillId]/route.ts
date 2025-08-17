@@ -32,7 +32,7 @@ const updateSkillSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { skillId: string } }
+  { params }: { params: Promise<{ skillId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -42,7 +42,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { skillId } = params;
+    const { skillId } = await params;
     const skill = await getSkillById(skillId);
 
     if (!skill) {
@@ -71,7 +71,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { skillId: string } }
+  { params }: { params: Promise<{ skillId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -81,7 +81,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { skillId } = params;
+    const { skillId } = await params;
 
     // Verify skill exists and user owns it
     const existingSkill = await getSkillById(skillId);
@@ -122,7 +122,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { skillId: string } }
+  { params }: { params: Promise<{ skillId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -132,7 +132,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { skillId } = params;
+    const { skillId } = await params;
 
     // Verify skill exists and user owns it
     const existingSkill = await getSkillById(skillId);

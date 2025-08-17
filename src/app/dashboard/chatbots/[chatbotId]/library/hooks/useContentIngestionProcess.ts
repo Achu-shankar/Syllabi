@@ -14,6 +14,19 @@ interface IngestionProcessOptions {
   userId: string;
 }
 
+interface ContentIngestionProcessReturn {
+  startDocumentIngestion: (file: File, conflictResolution?: ConflictResolution, existingContentSourceId?: string) => Promise<void>;
+  startUrlIngestion: (url: string, title?: string) => Promise<void>;
+  startMultimediaIngestion: (file: File, conflictResolution?: ConflictResolution, existingContentSourceId?: string) => Promise<void>;
+  startGoogleDriveIngestion: (file: any, integrationId: string) => Promise<void>;
+  startNotionIngestion: (page: any, integrationId: string) => Promise<void>;
+  activeConnections: Map<string, TaskSSEConnection>;
+  handleSSEUpdate: (frontendTaskId: string, sseData: SSEMessage) => void;
+  handleSSEComplete: (frontendTaskId: string, sseData: SSEMessage) => Promise<void>;
+  handleSSEError: (frontendTaskId: string, errorData: SSEMessage | { message: string }) => void;
+  sseOnCloseHandler: (frontendTaskId: string) => void;
+}
+
 // Task-specific SSE connection tracking
 export interface TaskSSEConnection {
   taskId: string;
@@ -21,7 +34,7 @@ export interface TaskSSEConnection {
   frontendTaskId: string;
 }
 
-export function useContentIngestionProcess({ chatbotId, userId }: IngestionProcessOptions) {
+export function useContentIngestionProcess({ chatbotId, userId }: IngestionProcessOptions): ContentIngestionProcessReturn {
   const { addTask, updateTask, getTask } = useTaskStore();
   const { uploadFile: supabaseUpload } = useSupabaseUpload(chatbotId);
   const deleteContentSource = useDeleteContentSource(chatbotId);
@@ -595,11 +608,75 @@ export function useContentIngestionProcess({ chatbotId, userId }: IngestionProce
     }
   };
 
+  const startNotionIngestion = async (page: any, integrationId: string) => {
+    if (!userId) {
+      console.error('[IngestionProcess] Cannot start Notion ingestion: userId is not available.');
+      return;
+    }
+    if (!page || !page.id) {
+      console.error('[IngestionProcess] No Notion page provided for ingestion.');
+      return;
+    }
+
+    const task = addTask({
+      name: page.title || 'Untitled Page',
+      type: 'document', // Notion pages are always processed as documents (converted to PDF)
+      file: undefined, // No local file for Notion pages
+      contentType: 'application/pdf',
+      fileSize: 0, // Unknown size for Notion pages
+    });
+
+    const referenceId = uuidv4();
+    updateTask(task.id, { 
+      referenceId: referenceId, 
+      status: 'processing_queued', 
+      currentStageMessage: 'Preparing Notion page for processing...' 
+    });
+
+    try {
+      const processingPayload = {
+        chatbotId,
+        userId,
+        integrationId,
+        pageId: page.id,
+        referenceId,
+      };
+      console.log('[IngestionProcess] Calling initiateNotionProcessing with:', processingPayload);
+      const processingResponse = await apiClient.initiateNotionProcessing(processingPayload);
+
+      updateTask(task.id, {
+        status: 'processing_queued',
+        currentStageMessage: 'Notion page processing started. Extracting content...',
+        processingTaskId: processingResponse.task_identifier,
+        referenceId: processingResponse.reference_id || referenceId,
+        progress: 10,
+      });
+      console.log('[IngestionProcess] Notion processing initiated:', processingResponse);
+
+      // Add SSE connection for this task
+      addConnection(task.id, {
+        taskId: processingResponse.task_identifier,
+        type: 'processing',
+        frontendTaskId: task.id
+      });
+
+    } catch (apiError: any) {
+      console.error('[IngestionProcess] API error initiating Notion processing:', apiError);
+      updateTask(task.id, {
+        status: 'processing_failed',
+        currentStageMessage: `Failed to start Notion processing: ${apiError.message || 'API error'}`,
+        error: apiError.message || 'API error processing Notion page.',
+        progress: 0,
+      });
+    }
+  };
+
   return { 
     startDocumentIngestion, 
     startUrlIngestion,
     startMultimediaIngestion,
     startGoogleDriveIngestion,
+    startNotionIngestion,
     activeConnections,
     handleSSEUpdate,
     handleSSEComplete,

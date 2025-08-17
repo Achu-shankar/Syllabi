@@ -10,17 +10,18 @@ import { Suspense } from "react";
 // You might want a breadcrumb or header component here too eventually
 // import ChatbotHeader from "./components/chatbot-header"; 
 
-export default function ChatbotDetailLayout({
+export default async function ChatbotDetailLayout({
     children,
     params,
 }: {
     children: React.ReactNode;
-    params: { chatbotId: string };
+    params: Promise<{ chatbotId: string }>;
 }) {
+    const { chatbotId } = await params;
   return (
     <SidebarProvider>
         {/* Pass chatbotId to AppSidebar if it needs it for context/links */}
-        <AppSidebar chatbotId={params.chatbotId} className="h-full" /> 
+        <AppSidebar chatbotId={chatbotId} className="h-full" /> 
         <SidebarInset>
             {/* 
             Future: Consider a header specific to the chatbot, showing its name, etc.

@@ -35,6 +35,7 @@ export function EmbeddedMessages({ messages, isLoading = false }: EmbeddedMessag
               role: 'assistant',
               content: '',
               createdAt: new Date(),
+              parts: [{ type: 'text', text: '' }],
             }}
             isTyping={true}
           />

@@ -4,16 +4,16 @@
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const supabase = await createClient();
+  const { sessionId } = await params;
+  
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
-
-    const sessionId = params.sessionId;
     if (!sessionId) {
       return new NextResponse('Missing sessionId parameter', { status: 400 });
     }
@@ -37,7 +37,8 @@ export async function PATCH(
 
     // Call the database function to update the name
     // This function needs to handle permissions (ensure user owns the session)
-    await updateChatSessionName(user.id, sessionId, newName);
+    // Note: Adding empty string as chatbotSlug parameter for now
+    await updateChatSessionName(user.id, sessionId, '', newName);
 
     console.log(`[API PATCH /sessions/${sessionId}] Renamed successfully.`);
 
@@ -45,12 +46,12 @@ export async function PATCH(
     return new NextResponse(null, { status: 200 }); // 200 OK for successful update
 
   } catch (error) {
-    console.error(`[API PATCH /sessions/${params.sessionId}] Error during rename attempt:`, error);
+    console.error(`[API PATCH /sessions/${sessionId}] Error during rename attempt:`, error);
 
     // Check if the error is the specific one we know might occur despite success
     if (error instanceof Error && error.message === "Session not found or update forbidden.") {
       // Log this as a warning, but assume the DB update worked based on previous findings
-      console.warn(`[API PATCH /sessions/${params.sessionId}] Caught known error '${error.message}' after potential successful update. Returning 200 OK.`);
+      console.warn(`[API PATCH /sessions/${sessionId}] Caught known error '${error.message}' after potential successful update. Returning 200 OK.`);
       return new NextResponse(null, { status: 200 }); 
     }
 
@@ -60,7 +61,7 @@ export async function PATCH(
       errorMessage = error.message; // Use the actual error message for other errors
     }
 
-    console.error(`[API PATCH /sessions/${params.sessionId}] Unhandled error during rename. Returning 500.`);
+    console.error(`[API PATCH /sessions/${sessionId}] Unhandled error during rename. Returning 500.`);
     return new NextResponse(JSON.stringify({ error: errorMessage }), {
       status: 500, 
       headers: { 'Content-Type': 'application/json' },
@@ -70,16 +71,16 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest, // request is unused but required by the signature
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const supabase = await createClient();
+  const { sessionId } = await params;
+  
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
-
-    const sessionId = params.sessionId;
     if (!sessionId) {
       return new NextResponse('Missing sessionId parameter', { status: 400 });
     }
@@ -87,7 +88,8 @@ export async function DELETE(
     console.log(`[API DELETE /sessions/${sessionId}] User: ${user.id} attempting to delete session.`);
 
     // Call the database function to delete the session
-    await deleteChatSession(user.id, sessionId);
+    // Note: Adding empty string as chatbotSlug parameter for now
+    await deleteChatSession(user.id, sessionId, '');
 
     console.log(`[API DELETE /sessions/${sessionId}] Deleted successfully.`);
 
@@ -95,7 +97,7 @@ export async function DELETE(
     return new NextResponse(null, { status: 204 }); 
 
   } catch (error) {
-    console.error(`[API DELETE /sessions/${params.sessionId}] Error deleting session:`, error);
+    console.error(`[API DELETE /sessions/${sessionId}] Error deleting session:`, error);
 
     // Handle specific errors if the query function throws them
     let errorMessage = 'Failed to delete session';

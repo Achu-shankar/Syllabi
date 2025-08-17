@@ -57,7 +57,7 @@ import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-json';
 import 'prismjs/themes/prism.css';
 import { useSkills } from '../hooks/useSkills';
-import { type Skill } from '@/app/dashboard/libs/skills_db_queries';
+import { type Skill } from '@/app/dashboard/libs/skills_db_queries_v2';
 import { cn } from '@/lib/utils';
 import { RainbowButton } from '@/components/magicui/rainbow-button';
 

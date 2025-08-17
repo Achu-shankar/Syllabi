@@ -4,7 +4,7 @@ import { getChatbotRecentActivity } from '@/app/dashboard/libs/queries';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -16,8 +16,9 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
+    const { chatbotId } = await params;
 
-    const recentActivity = await getChatbotRecentActivity(params.chatbotId, user.id, limit);
+    const recentActivity = await getChatbotRecentActivity(chatbotId, user.id, limit);
 
     return NextResponse.json(recentActivity);
   } catch (error) {

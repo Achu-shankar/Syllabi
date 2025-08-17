@@ -12,10 +12,10 @@ import {
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { chatbotId: string; contentSourceId: string } }
+  { params }: { params: Promise<{ chatbotId: string; contentSourceId: string }> }
 ) {
   try {
-    const { chatbotId, contentSourceId } = params;
+    const { chatbotId, contentSourceId } = await params;
     const body = await request.json();
 
     // Verify user has access to this chatbot

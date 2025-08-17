@@ -32,7 +32,7 @@ export function ChatbotLoading() {
   // This makes them loop infinitely with a smooth ease-in-out curve.
   const blobTransition = {
     duration: 4,
-    ease: "easeInOut",
+    ease: [0.4, 0, 0.2, 1] as const, // easeInOut as cubic bezier
     repeat: Infinity,
   };
 
@@ -45,7 +45,7 @@ export function ChatbotLoading() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+        transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] as const }}
         className="w-32 h-32 relative" 
         style={{ filter: 'url(#goo)' }}
       >
@@ -72,7 +72,7 @@ export function ChatbotLoading() {
                 delay: -index * 2, // Staggered delay
                 backgroundPosition: { // Separate transition for the gradient
                    duration: 3,
-                   ease: "easeInOut",
+                   ease: [0.4, 0, 0.2, 1] as const, // easeInOut as cubic bezier
                    repeat: Infinity,
                 }
               }}

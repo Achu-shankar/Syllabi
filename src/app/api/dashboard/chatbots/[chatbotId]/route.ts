@@ -9,9 +9,9 @@ import {
 } from '../../../../dashboard/libs/queries'; // Adjusted path to queries
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     chatbotId: string;
-  };
+  }>;
 }
 
 // GET a specific chatbot

@@ -318,15 +318,15 @@ export default function GoogleDriveModal({ chatbotId, onFilesSelected, trigger }
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Import from Google Drive</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Integration Selection */}
           {integrations.length > 1 && (
-            <div className="mb-4">
+            <div className="mb-4 flex-shrink-0">
               <label className="text-sm font-medium mb-2 block">Select Google Account</label>
               <select 
                 value={selectedIntegration} 
@@ -344,15 +344,15 @@ export default function GoogleDriveModal({ chatbotId, onFilesSelected, trigger }
           )}
 
           {selectedIntegration && (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+              <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
                 <TabsTrigger value="browse">Browse Files</TabsTrigger>
                 <TabsTrigger value="search">Search</TabsTrigger>
               </TabsList>
               
-              <TabsContent value="browse" className="flex-1 flex flex-col">
+              <TabsContent value="browse" className="flex-1 flex flex-col min-h-0 mt-4">
                 {/* Navigation */}
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 flex-shrink-0">
                   {currentFolder !== 'root' && (
                     <Button variant="ghost" size="sm" onClick={handleBack}>
                       ← Back
@@ -373,7 +373,7 @@ export default function GoogleDriveModal({ chatbotId, onFilesSelected, trigger }
                 </div>
 
                 {/* Files List */}
-                <ScrollArea className="flex-1 border rounded-md">
+                <ScrollArea className="h-[400px] border rounded-md">
                   {isLoading ? (
                     <div className="p-4 space-y-2">
                       {[...Array(5)].map((_, i) => (
@@ -467,8 +467,8 @@ export default function GoogleDriveModal({ chatbotId, onFilesSelected, trigger }
                 </ScrollArea>
               </TabsContent>
               
-              <TabsContent value="search" className="flex-1 flex flex-col">
-                <div className="flex gap-2 mb-4">
+              <TabsContent value="search" className="flex-1 flex flex-col min-h-0 mt-4">
+                <div className="flex gap-2 mb-4 flex-shrink-0">
                   <Input
                     placeholder="Search files and folders..."
                     value={searchQuery}
@@ -483,7 +483,7 @@ export default function GoogleDriveModal({ chatbotId, onFilesSelected, trigger }
                   </Button>
                 </div>
 
-                <ScrollArea className="flex-1 border rounded-md">
+                <ScrollArea className="h-[400px] border rounded-md">
                   {isSearching ? (
                     <div className="p-4 space-y-2">
                       {[...Array(3)].map((_, i) => (
@@ -567,14 +567,14 @@ export default function GoogleDriveModal({ chatbotId, onFilesSelected, trigger }
           )}
 
           {error && (
-            <Alert className="mt-4">
+            <Alert className="mt-4 flex-shrink-0">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t flex-shrink-0">
             <div className="text-sm text-gray-600">
               {selectedFiles.size > 0 && (
                 <span>{selectedFiles.size} file(s) selected</span>

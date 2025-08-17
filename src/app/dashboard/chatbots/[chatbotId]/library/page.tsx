@@ -15,6 +15,7 @@ import {
 import FileUploadModal from './components/FileUploadModal';
 import UrlInputModal from './components/UrlInputModal';
 import GoogleDriveModal from './components/GoogleDriveModal';
+import NotionModal from './components/NotionModal';
 import ContentSourcesTable from './components/ContentSourcesTable';
 import TaskProgressGlobalDisplay from './components/TaskProgressGlobalDisplay';
 import FolderList from './components/FolderList';
@@ -77,6 +78,7 @@ export default function ChatbotLibraryPage() {
     startUrlIngestion,
     startMultimediaIngestion,
     startGoogleDriveIngestion,
+    startNotionIngestion,
     activeConnections,
     handleSSEUpdate,
     handleSSEComplete,
@@ -516,6 +518,26 @@ export default function ChatbotLibraryPage() {
                           <path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm0 2h7v5h5v11H6V4z"/>
                         </svg>
                         Google Drive
+                      </Button>
+                    }
+                  />
+                  <NotionModal
+                    chatbotId={chatbotId}
+                    onPagesSelected={async (pages, integrationId) => {
+                      // Use the unified ingestion process for each selected page
+                      for (const page of pages) {
+                        await startNotionIngestion(page, integrationId);
+                      }
+                    }}
+                    trigger={
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M4.459 4.208c0-.456.137-.799.41-1.029.274-.23.662-.345 1.164-.345h4.933c.502 0 .89.115 1.164.345.273.23.41.573.41 1.029v15.584c0 .456-.137.799-.41 1.029-.274.23-.662.345-1.164.345H6.033c-.502 0-.89-.115-1.164-.345-.273-.23-.41-.573-.41-1.029V4.208zM2.459 4.208c0-.955.325-1.731.975-2.329C4.084 1.282 4.93.875 6.033.875h4.933c1.103 0 1.949.407 2.539 1.004.65.598.975 1.374.975 2.329v15.584c0 .955-.325 1.731-.975 2.329-.59.597-1.436 1.004-2.539 1.004H6.033c-1.103 0-1.949-.407-2.539-1.004C2.784 21.523 2.459 20.747 2.459 19.792V4.208z"/>
+                        </svg>
+                        Notion
                       </Button>
                     }
                   />

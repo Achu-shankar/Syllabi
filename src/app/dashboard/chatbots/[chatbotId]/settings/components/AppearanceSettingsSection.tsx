@@ -492,7 +492,7 @@ export function AppearanceSettingsSection({ chatbot, chatbotId }: AppearanceSett
     registerSaveHandler('appearance', async () => {
       await handleSubmit(onSubmit)();
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [registerSaveHandler, handleSubmit, onSubmit]);
 
   // Register reset handler

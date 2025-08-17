@@ -328,7 +328,7 @@ export function BehaviorSettingsSection({ chatbot, chatbotId }: BehaviorSettings
     registerSaveHandler('behavior', async () => {
       await handleSubmit(onSubmit)();
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [registerSaveHandler, handleSubmit, onSubmit]);
 
   useEffect(() => {

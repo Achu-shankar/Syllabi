@@ -191,7 +191,7 @@ export const useCodeRuntimesStore = create<CodeRuntimesState & CodeRuntimesActio
 
   executeCode: async (language, code) => {
     // Initialize baseResult with the new field
-    let baseResult: Omit<ExecutionResult, 'stdout' | 'stderr'> = { 
+    const baseResult: Omit<ExecutionResult, 'stdout' | 'stderr'> = { 
       error: null, 
       plotData: null, 
       pythonPlotBase64: null, // Initialize new field

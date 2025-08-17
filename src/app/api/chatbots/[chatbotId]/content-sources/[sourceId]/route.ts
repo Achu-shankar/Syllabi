@@ -8,10 +8,10 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string; sourceId: string } }
+  { params }: { params: Promise<{ chatbotId: string; sourceId: string }> }
 ) {
   try {
-    const { sourceId } = params;
+    const { sourceId } = await params;
     
     if (!sourceId) {
       return NextResponse.json(
@@ -48,10 +48,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { chatbotId: string; sourceId: string } }
+  { params }: { params: Promise<{ chatbotId: string; sourceId: string }> }
 ) {
   try {
-    const { sourceId } = params;
+    const { sourceId } = await params;
     const body = await request.json();
     
     if (!sourceId) {
@@ -101,10 +101,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { chatbotId: string; sourceId: string } }
+  { params }: { params: Promise<{ chatbotId: string; sourceId: string }> }
 ) {
   try {
-    const { sourceId } = params;
+    const { sourceId } = await params;
     
     if (!sourceId) {
       return NextResponse.json(

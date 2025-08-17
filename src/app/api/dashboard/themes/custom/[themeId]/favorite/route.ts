@@ -3,9 +3,9 @@ import { createClient } from '../../../../../../../utils/supabase/server';
 import { toggleThemeFavorite } from '../../../../../../dashboard/libs/queries';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     themeId: string;
-  };
+  }>;
 }
 
 // POST - Toggle favorite status of a custom theme

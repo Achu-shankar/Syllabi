@@ -55,6 +55,15 @@ interface InitiateGoogleDriveProcessingPayload {
   referenceId: string;
 }
 
+// Notion processing payload
+interface InitiateNotionProcessingPayload {
+  chatbotId: string;
+  userId: string;
+  integrationId: string;
+  pageId: string;
+  referenceId: string;
+}
+
 // ----- RESPONSES ----- //
 // Assuming backend returns task_identifier which we map to processingTaskId or indexingTaskId
 interface BackendTaskResponse {
@@ -267,5 +276,38 @@ export const apiClient = {
         return responseData as BackendTaskResponse;
     }
     throw new Error('Unexpected response status from Google Drive processing initiation.');
+  },
+
+  initiateNotionProcessing: async (payload: InitiateNotionProcessingPayload): Promise<BackendTaskResponse> => {
+    console.log('[API Client] Initiating Notion processing with backend:', payload);
+    const endpoint = `${API_BASE_URL}/notion/process-page`;
+
+    const backendPayload = {
+        user_id: payload.userId,
+        chatbot_id: payload.chatbotId,
+        integration_id: payload.integrationId,
+        page_id: payload.pageId,
+        reference_id: payload.referenceId,
+    };
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backendPayload)
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('[API Client] Error initiating Notion processing:', response.status, errorBody);
+        throw new Error(`Failed to initiate Notion processing: ${response.status} ${errorBody}`);
+    }
+    if (response.status === 200) { // OK
+        const responseData = await response.json();
+        console.log('[API Client] Notion processing response:', responseData);
+        return responseData as BackendTaskResponse;
+    }
+    throw new Error('Unexpected response status from Notion processing initiation.');
   }
 }; 

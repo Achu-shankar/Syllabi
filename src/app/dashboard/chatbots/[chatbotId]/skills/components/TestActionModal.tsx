@@ -22,7 +22,7 @@ import {
   Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { type Skill } from '@/app/dashboard/libs/skills_db_queries';
+import { type Skill } from '@/app/dashboard/libs/skills_db_queries_v2';
 import { Switch } from '@/components/ui/switch';
 
 interface TestActionModalProps {

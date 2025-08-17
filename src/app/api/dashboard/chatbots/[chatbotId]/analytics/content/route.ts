@@ -4,7 +4,7 @@ import { getChatbotContentAnalytics } from '@/app/dashboard/libs/queries';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -14,7 +14,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contentAnalytics = await getChatbotContentAnalytics(params.chatbotId, user.id);
+    const { chatbotId } = await params;
+    const contentAnalytics = await getChatbotContentAnalytics(chatbotId, user.id);
 
     return NextResponse.json(contentAnalytics);
   } catch (error) {

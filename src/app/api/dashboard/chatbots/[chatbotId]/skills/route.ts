@@ -27,7 +27,7 @@ const updateAssociationSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -37,7 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { chatbotId } = params;
+    const { chatbotId } = await params;
 
     // Verify user owns this chatbot
     const { data: chatbot, error: chatbotError } = await supabase
@@ -71,7 +71,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -81,7 +81,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { chatbotId } = params;
+    const { chatbotId } = await params;
 
     // Verify user owns this chatbot
     const { data: chatbot, error: chatbotError } = await supabase

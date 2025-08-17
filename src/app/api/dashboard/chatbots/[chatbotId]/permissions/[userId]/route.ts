@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '../../../../../../../utils/supabase/server';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     chatbotId: string;
     userId: string;
-  };
+  }>;
 }
 
 // DELETE - Remove permission for a specific user

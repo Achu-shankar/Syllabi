@@ -4,7 +4,7 @@ import { getChatbotAnalytics, TimeRange } from '@/app/dashboard/libs/queries';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -16,8 +16,9 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const timeRange = (searchParams.get('timeRange') as TimeRange) || '30d';
+    const { chatbotId } = await params;
 
-    const analyticsData = await getChatbotAnalytics(params.chatbotId, user.id, timeRange);
+    const analyticsData = await getChatbotAnalytics(chatbotId, user.id, timeRange);
 
     return NextResponse.json(analyticsData);
   } catch (error) {

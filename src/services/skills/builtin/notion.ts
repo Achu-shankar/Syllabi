@@ -340,7 +340,7 @@ function extractTextFromBlocks(blocks: any[]): string {
 // --- Helper: fetch **all** children for a block (handles pagination) ---
 async function fetchAllChildren(notion: any, blockId: string) {
   let cursor: string | undefined = undefined;
-  let results: any[] = [];
+  const results: any[] = [];
   do {
     const res: any = await notion.blocks.children.list({ block_id: blockId, start_cursor: cursor });
     results.push(...res.results);

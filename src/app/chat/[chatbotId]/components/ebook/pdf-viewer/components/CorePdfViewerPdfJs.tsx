@@ -219,9 +219,9 @@ const CorePdfViewerPdfJsInternal = forwardRef<CorePdfViewerPdfJsRef, CorePdfView
     }, [fileUrl, onDocumentLoadSuccess, onDocumentLoadError]);
 
     // Reset page refs when document changes
-    useEffect(() => {
-      pagePlaceholderRefs.current = Array(numPages).fill(null);
-    }, [numPages]);
+    // useEffect(() => {
+    //   pagePlaceholderRefs.current = Array(numPages).fill(null);
+    // }, [numPages]);
 
     // --- Intersection Observer for Page Visibility Detection ---
     useEffect(() => {

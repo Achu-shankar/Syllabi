@@ -91,7 +91,7 @@ export function GeneralSettingsSection({ chatbot, chatbotId }: GeneralSettingsSe
     registerSaveHandler('general', async () => {
       await handleSubmit(onSubmit)();
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [registerSaveHandler, handleSubmit, onSubmit]);
 
   // Register reset handler

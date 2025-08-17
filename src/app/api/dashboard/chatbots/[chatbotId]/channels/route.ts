@@ -22,7 +22,7 @@ const updateChannelLinkSchema = z.object({
 // GET /api/dashboard/chatbots/[chatbotId]/channels
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -32,7 +32,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const links = await getChatbotChannelLinks(params.chatbotId, user.id);
+    const { chatbotId } = await params;
+    const links = await getChatbotChannelLinks(chatbotId, user.id);
     return NextResponse.json(links);
 
   } catch (error: any) {
@@ -47,7 +48,7 @@ export async function GET(
 // POST /api/dashboard/chatbots/[chatbotId]/channels
 export async function POST(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -59,9 +60,10 @@ export async function POST(
 
     const body = await request.json();
     const { integrationId, config } = channelLinkSchema.parse(body);
+    const { chatbotId } = await params;
 
     const link = await createChatbotChannelLink({
-      chatbotId: params.chatbotId,
+      chatbotId,
       integrationId,
       config,
       userId: user.id,
@@ -89,7 +91,7 @@ export async function POST(
 // PUT /api/dashboard/chatbots/[chatbotId]/channels
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -130,7 +132,7 @@ export async function PUT(
 // DELETE /api/dashboard/chatbots/[chatbotId]/channels/[linkId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { chatbotId: string } }
+  { params }: { params: Promise<{ chatbotId: string }> }
 ) {
   try {
     const supabase = await createClient();

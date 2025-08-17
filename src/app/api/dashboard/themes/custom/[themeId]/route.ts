@@ -9,9 +9,9 @@ import {
 } from '../../../../../dashboard/libs/queries';
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     themeId: string;
-  };
+  }>;
 }
 
 // GET - Fetch a specific custom theme

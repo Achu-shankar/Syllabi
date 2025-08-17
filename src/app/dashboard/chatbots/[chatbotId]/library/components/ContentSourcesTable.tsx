@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,15 +27,12 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { 
-  FileText, 
   Link as LinkIcon, 
   MoreHorizontal, 
   Trash2, 
   Download,
   RefreshCw,
   AlertCircle,
-  Video,
-  Music,
   Clock,
   Edit2,
   Check,

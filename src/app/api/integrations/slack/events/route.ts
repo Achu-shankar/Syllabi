@@ -73,7 +73,7 @@ interface DecryptedWorkspace {
     default_chatbot_id: string;
 }
 
-export async function processSlackMessage(payload: any) {
+async function processSlackMessage(payload: any) {
     const { user, text, channel, thread_ts } = payload.event;
     const team_id = payload.team_id as string;
 

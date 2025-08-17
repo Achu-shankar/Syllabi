@@ -40,7 +40,7 @@ export async function GET(
     }
 
     // Determine storage bucket based on content type
-    let storageBucket = 'documents'; // All content types use the documents bucket
+    const storageBucket = 'documents'; // All content types use the documents bucket
     const sourceType = contentSource.source_type?.toLowerCase();
     
     // Note: Based on the backend implementation, all files (documents, URLs, and multimedia)

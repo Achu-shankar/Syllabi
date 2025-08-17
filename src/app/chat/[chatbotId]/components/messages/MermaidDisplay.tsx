@@ -72,7 +72,7 @@ export const MermaidDisplay: React.FC<MermaidDisplayProps> = ({ mermaidCode, idS
     currentDiv.innerHTML = '';
 
     const lines = code.split('\n');
-    let tempProcessedCode = lines.length > 0 
+    const tempProcessedCode = lines.length > 0 
       ? lines[0] + '\n' + lines.slice(1).filter(line => line.trim() !== '').join('\n')
       : code;
     const finalCode = tempProcessedCode.replace(/\[([^\]]+)\]/g, (match, innerContent) => {

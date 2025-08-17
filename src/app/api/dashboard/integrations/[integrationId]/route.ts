@@ -4,7 +4,7 @@ import { createServiceClient } from '@/utils/supabase/service';
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { integrationId: string } }
+    { params }: { params: Promise<{ integrationId: string }> }
 ) {
     const supabase = await createClient();
     const {
@@ -15,7 +15,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const integrationId = params.integrationId; // This is the internal UUID of the integration
+    const { integrationId } = await params; // This is the internal UUID of the integration
     if (!integrationId) {
         return NextResponse.json({ error: 'Integration ID is required.' }, { status: 400 });
     }

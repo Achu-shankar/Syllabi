@@ -197,7 +197,7 @@ export function ActionModalV2({ open, onOpenChange, chatbotId, mode, action }: A
         setShowAdvanced(false);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [mode, action, open]);
 
   // Step validation

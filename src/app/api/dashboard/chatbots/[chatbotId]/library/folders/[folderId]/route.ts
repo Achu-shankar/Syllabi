@@ -12,10 +12,10 @@ import {
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { chatbotId: string; folderId: string } }
+  { params }: { params: Promise<{ chatbotId: string; folderId: string }> }
 ) {
   try {
-    const { chatbotId, folderId } = params;
+    const { chatbotId, folderId } = await params;
     const body = await request.json();
 
     // Verify user has access to this chatbot
@@ -98,10 +98,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { chatbotId: string; folderId: string } }
+  { params }: { params: Promise<{ chatbotId: string; folderId: string }> }
 ) {
   try {
-    const { chatbotId, folderId } = params;
+    const { chatbotId, folderId } = await params;
 
     // Verify user has access to this chatbot
     const supabase = await createClient();
