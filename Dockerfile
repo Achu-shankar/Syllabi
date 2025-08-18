@@ -53,9 +53,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install-deps && playwright install chromium || \
     echo "WARNING: Playwright installation failed - URL processing with browser automation will be disabled"
 
-# Copy startup script
+# Copy startup scripts
 COPY start.sh ./
-RUN chmod +x start.sh
+COPY start-worker.sh ./
+RUN chmod +x start.sh start-worker.sh
 
 # Copy application code
 COPY app/ ./app/
