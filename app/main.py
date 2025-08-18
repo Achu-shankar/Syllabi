@@ -26,6 +26,17 @@ def root() -> dict:
     """
     return {"message": f"Welcome to the {settings.PROJECT_NAME} API"}
 
+@app.get("/health")
+def health_check() -> dict:
+    """
+    Health check endpoint for Docker and Railway monitoring.
+    """
+    return {
+        "status": "healthy", 
+        "service": settings.PROJECT_NAME,
+        "version": "1.0.0"
+    }
+
 
 
 

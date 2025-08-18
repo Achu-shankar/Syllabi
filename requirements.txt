@@ -1,27 +1,74 @@
-fastapi
-uvicorn[standard]
-pydantic
-pydantic-settings
-redis
-celery
-supabase
-python-dotenv
-markdown2>=2.4.0
-WeasyPrint>=50.0 # Check for latest, be mindful of system dependencies
-fpdf2>=2.5.0
-# PyMuPDF # Removed as per plan
+# fastapi
+# uvicorn[standard]
+# pydantic
+# pydantic-settings
+# redis
+# celery
+# supabase
+# python-dotenv
+# markdown2>=2.4.0
+# WeasyPrint>=50.0 # Check for latest, be mindful of system dependencies
+# fpdf2>=2.5.0
+# # PyMuPDF # Removed as per plan
 
-# Added for indexing pipeline
-pdfplumber>=0.10.0 # Check for latest stable version
-openai>=1.0.0 # Check for latest stable version for OpenAI API v1+
-tiktoken>=0.5.0 # For token counting with OpenAI models
+# # Added for indexing pipeline
+# pdfplumber>=0.10.0 # Check for latest stable version
+# openai>=1.0.0 # Check for latest stable version for OpenAI API v1+
+# tiktoken>=0.5.0 # For token counting with OpenAI models
 
-# Added for multimedia processing
-pydub>=0.25.0 # For audio processing and chunking
-google-api-python-client 
-google-auth-httplib2 
-google-auth-oauthlib
-google-auth # For credentials handling
+# # Added for multimedia processing
+# pydub>=0.25.0 # For audio processing and chunking
+# google-api-python-client 
+# google-auth-httplib2 
+# google-auth-oauthlib
+# google-auth # For credentials handling
 
-# Added for Notion integration
-notion-client>=2.0.0 # Official Notion Python SDK
+# # Added for Notion integration
+# notion-client>=2.0.0 # Official Notion Python SDK
+
+# Core FastAPI stack
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+pydantic==2.11.4
+pydantic-settings==2.9.1
+
+# Task queue and caching
+celery==5.5.2
+redis==6.1.0
+
+# Database and storage
+supabase==2.15.1
+
+# Configuration
+python-dotenv==1.1.0
+
+# Document processing
+pdfplumber==0.11.6
+PyMuPDF==1.25.5
+fpdf2==2.8.3
+weasyprint==65.1
+pdfkit==1.0.0
+markdown2==2.5.3
+
+# AI and embeddings
+openai==1.78.1
+tiktoken==0.9.0
+
+# Multimedia processing
+pydub==0.25.1
+
+# Web scraping and HTTP
+httpx==0.28.1
+playwright==1.52.0
+
+# Async file operations
+aiofiles==24.1.0
+
+# Google integrations
+google-api-python-client==2.176.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.2
+google-auth==2.40.3
+
+# Notion integration
+notion-client==2.4.0
