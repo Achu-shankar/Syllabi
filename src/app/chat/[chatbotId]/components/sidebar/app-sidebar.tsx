@@ -116,7 +116,9 @@ export function AppSidebar() {
       collapsible="icon" 
       data-chat-sidebar="true"
       style={{
+        '--sidebar-background': themeVars.sidebarBackgroundColor,
         '--sidebar': themeVars.sidebarBackgroundColor,
+        '--sidebar-foreground': themeVars.sidebarTextColor,
         backgroundColor: themeVars.sidebarBackgroundColor,
         color: themeVars.sidebarTextColor,
       } as React.CSSProperties}

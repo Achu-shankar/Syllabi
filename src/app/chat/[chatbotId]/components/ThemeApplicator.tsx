@@ -68,9 +68,13 @@ export function ThemeApplicator() {
     applyTransitions();
     applyColors(colors);
 
-    // IMPORTANT: Override the global --sidebar variable used by bg-sidebar class
+    // IMPORTANT: Override the global --sidebar variables used by bg-sidebar class and mobile Sheet
     if (colors.sidebarBackgroundColor) {
       root.style.setProperty('--sidebar', colors.sidebarBackgroundColor);
+      root.style.setProperty('--sidebar-background', colors.sidebarBackgroundColor);
+    }
+    if (colors.sidebarTextColor) {
+      root.style.setProperty('--sidebar-foreground', colors.sidebarTextColor);
     }
 
     // Apply font family if specified

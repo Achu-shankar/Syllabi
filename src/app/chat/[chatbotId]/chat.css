@@ -12,6 +12,23 @@
 /* Ensure theme colors cascade properly */
 [data-chat-sidebar="true"] * {
   --sidebar: var(--chat-sidebar-background-color);
+}
+
+/* Fix for mobile sidebar transparency issue - target SheetContent */
+[data-sidebar="sidebar"][data-mobile="true"] {
+  background-color: var(--sidebar-background, var(--sidebar)) !important;
+  color: var(--sidebar-foreground) !important;
+  border: none !important; /* Remove the white border */
+  border-right: none !important; /* Specifically remove right border */
+}
+
+/* Additional mobile sheet override */
+.sheet-content[data-sidebar="sidebar"][data-mobile="true"],
+[data-state="open"] [data-sidebar="sidebar"][data-mobile="true"] {
+  background-color: var(--sidebar-background, var(--sidebar)) !important;
+  color: var(--sidebar-foreground) !important;
+  border: none !important; /* Remove the white border */
+  border-right: none !important; /* Specifically remove right border */
 } 
 
 /* Global scrollbar styling for entire chat page */
