@@ -374,6 +374,63 @@ export async function updateChatSessionName(
     }
   }
 
+// =====================================================
+// Message Management Functions
+// =====================================================
+
+export async function deleteMessagesAfterTimestamp(
+  userId: string,
+  sessionId: string, 
+  timestamp: string
+): Promise<void> {
+  const supabase = await createClient();
+  console.log(`[Queries] Deleting messages from timestamp ${timestamp} onwards for session ${sessionId}`);
+  
+  try {
+    const { error, count } = await supabase
+      .from('messages')
+      .delete({ count: 'exact' })
+      .eq('chat_session_id', sessionId)
+      .eq('user_id', userId)
+      .gte('created_at', timestamp); // Delete messages created at or after this timestamp (includes the current message)
+    
+    if (error) {
+      console.error(`[Queries] Error deleting messages:`, error);
+      throw new Error(`Failed to delete messages: ${error.message}`);
+    }
+    
+    console.log(`[Queries] Successfully deleted ${count} messages from timestamp ${timestamp} onwards`);
+    
+  } catch (error) {
+    console.error(`[Queries] Exception deleting messages:`, error);
+    throw error;
+  }
+}
+
+export async function getMessageById(messageId: string, userId: string): Promise<DBMessage | null> {
+  const supabase = await createClient();
+  
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('message_id', messageId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error(`[Queries] Error fetching message ${messageId}:`, error);
+      throw new Error(`Failed to fetch message: ${error.message}`);
+    }
+    
+    return data;
+    
+  } catch (error) {
+    console.error(`[Queries] Exception fetching message ${messageId}:`, error);
+    throw error;
+  }
+}
+
 /**
  * Interface for chatbot configuration from database
  */

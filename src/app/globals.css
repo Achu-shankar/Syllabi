@@ -139,7 +139,7 @@
     --ring: 0 0% 13%; /* #222222 */
 
     /* Functional Colors */
-    --sidebar: 0 0% 98.5%;
+    --sidebar: 0% 0% 98.5%;
     --sidebar-foreground: 0 0% 7%;
     --sidebar-accent: 0 0% 92%;
 
