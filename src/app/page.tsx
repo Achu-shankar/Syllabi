@@ -1,10 +1,6 @@
 
-export default function RootPage() {
-  // redirect('/das?hboard/charots')
+import { redirect } from 'next/navigation'
 
-  return (
-    <div>
-      <h1>Landing Page</h1>
-    </div>
-  )
+export default function RootPage() {
+  redirect('/dashboard')
 } 
