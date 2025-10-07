@@ -20,6 +20,7 @@ import { saveOrUpdateChatMessages, getChatbotConfig } from '@/app/chat/[chatbotI
 import { calculateTokenCost } from '@/app/chat/[chatbotId]/lib/token-utils';
 import { z } from 'zod';
 import { getSkillsAsTools, getOptimalToolSelectionConfig } from '@/services/chat/tools-builder-v2';
+import { checkAndIncrementRateLimit } from '@/services/rate-limiting/rate-limiter';
 
 export const maxDuration = 60;
 
@@ -105,6 +106,46 @@ export async function POST(request: Request) {
     }
 
     const chatbotId = chatbot.id;
+
+    // === RATE LIMITING ===
+    // Check rate limit before processing the request
+    const identifier = userId || id; // Use user_id for authenticated, session_id for anonymous
+    const identifierType = userId ? 'user' : 'session';
+
+    const rateLimitResult = await checkAndIncrementRateLimit(
+      chatbotId,
+      identifier,
+      identifierType
+    );
+
+    if (!rateLimitResult.allowed) {
+      const defaultMessage = rateLimitResult.limit_type === 'hour'
+        ? 'You have reached your hourly message limit. Please try again in a few minutes.'
+        : 'You have reached your daily message limit. Please try again tomorrow.';
+
+      const message = rateLimitResult.custom_message || defaultMessage;
+
+      console.log(`[Embedded Chat API] Rate limit exceeded for ${identifierType} ${identifier}: ${message}`);
+
+      return new Response(
+        JSON.stringify({
+          error: 'RATE_LIMIT_EXCEEDED',
+          message,
+          limit_type: rateLimitResult.limit_type,
+          remaining_hour: rateLimitResult.remaining_hour,
+          remaining_day: rateLimitResult.remaining_day
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': rateLimitResult.limit_type === 'hour' ? '3600' : '86400'
+          }
+        }
+      );
+    }
+
+    console.log(`[Embedded Chat API] Rate limit check passed. Remaining: ${rateLimitResult.remaining_hour}/hour, ${rateLimitResult.remaining_day}/day`);
 
     // Fetch chatbot configuration (model, system prompt, temperature)
     let chatbotConfig;

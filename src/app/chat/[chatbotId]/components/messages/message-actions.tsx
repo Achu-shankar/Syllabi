@@ -12,8 +12,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { Check } from 'lucide-react';
 
 export function PureMessageActions({
   chatId,
@@ -28,6 +29,17 @@ export function PureMessageActions({
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
+  const [copied, setCopied] = useState(false);
+
+  // Reset copied state after 2 seconds
+  useEffect(() => {
+    if (copied) {
+      const timer = setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copied]);
 
   if (isLoading) return null;
   if (message.role === 'user') return null;
@@ -38,7 +50,11 @@ export function PureMessageActions({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              className="py-1 px-2 h-fit text-muted-foreground"
+              className={`py-1 px-2 h-fit transition-all duration-300 ${
+                copied 
+                  ? 'text-green-600 bg-green-50 border-green-200 hover:bg-green-100' 
+                  : 'text-muted-foreground'
+              }`}
               variant="outline"
               onClick={async () => {
                 const textFromParts = message.parts
@@ -53,13 +69,22 @@ export function PureMessageActions({
                 }
 
                 await copyToClipboard(textFromParts);
+                setCopied(true);
                 toast.success('Copied to clipboard!');
               }}
             >
-              <CopyIcon />
+              <div className="transition-all duration-300">
+                {copied ? (
+                  <Check className="w-4 h-4 animate-in zoom-in-50 duration-200" />
+                ) : (
+                  <CopyIcon />
+                )}
+              </div>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Copy</TooltipContent>
+          <TooltipContent>
+            {copied ? 'Copied!' : 'Copy'}
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useChat, type Message } from '@ai-sdk/react';
+import type { Attachment } from 'ai';
 import { useQueryClient } from '@tanstack/react-query'; // <-- Import useQueryClient
 import { createClient } from '@/utils/supabase/client';
 // import { CodeRuntimesProvider } from '../lib/useCodeRuntimes'; // Import the provider
@@ -10,13 +11,6 @@ import { MultimodalInput } from './multimodal-input';
 import { generateUUID } from '../lib/utils';
 import { Messages } from './messages/messages';
 import { Greeting } from './messages/greeting';
-
-// Define local Attachment type if not exported by SDK
-type Attachment = {
-  name?: string;
-  contentType?: string;
-  url: string;
-};
 
 
 interface ChatAreaProps {
@@ -37,6 +31,7 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
   }
   
   const [user, setUser] = useState<User | null>(null);
+  const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -73,13 +68,47 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
             onFinish: () => {
               queryClient.invalidateQueries({ queryKey: ['sessionList'] })
             },
-            onError: (err) => {
+            onError: async (err) => {
               console.error("Chat error:", err);
+
+              // Try to parse the error response
+              let errorMessage = '⚠️ Sorry, something went wrong. Please try again.';
+              let isRateLimitError = false;
+
+              try {
+                // Check if it's a Response object (fetch error)
+                if (err instanceof Response) {
+                  if (err.status === 429) {
+                    const errorData = await err.json();
+                    errorMessage = errorData.message || 'You have reached your message limit. Please try again later.';
+                    isRateLimitError = true;
+                  }
+                }
+                // Check if it's an Error with a message
+                else if (err instanceof Error) {
+                  // Try to parse the error message as JSON (in case it's a stringified response)
+                  try {
+                    const parsedError = JSON.parse(err.message);
+                    if (parsedError.error === 'RATE_LIMIT_EXCEEDED') {
+                      errorMessage = parsedError.message;
+                      isRateLimitError = true;
+                    }
+                  } catch {
+                    // Not a JSON error, use the error message directly
+                    errorMessage = err.message || errorMessage;
+                  }
+                }
+              } catch (parseError) {
+                console.error("Error parsing error response:", parseError);
+              }
+
               // Add a fallback assistant message locally without triggering another API call
               const fallbackMessage: Message = {
                 id: generateUUID(),
                 role: 'assistant',
-                content: '⚠️ Sorry, something went wrong. Please try again.',
+                content: isRateLimitError
+                  ? `🚫 ${errorMessage}`
+                  : `⚠️ ${errorMessage}`,
                 createdAt: new Date(),
               };
               setMessages((prev) => [...prev, fallbackMessage]);
@@ -121,6 +150,8 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
                   setInput={setInput}
                   status={status}
                   stop={stop}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
                   messages={messages}
                   setMessages={setMessages}
                   append={append}
@@ -160,6 +191,8 @@ export default function ChatArea({ activeSessionId, initialMessages, chatbotSlug
                 setInput={setInput}
                 status={status}
                 stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
                 messages={messages}
                 setMessages={setMessages}
                 append={append}

@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { PlusIcon, MessageSquareText, AlertCircle, Bell, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { PlusIcon, MessageSquareText, AlertCircle, Bell, MessageSquare, Star } from 'lucide-react';
 import { SidebarHistory } from './sidebar-history';
 import { SidebarUserNav } from './sidebar-user-nav';
 import {
@@ -33,6 +33,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import {
+  markAnnouncementAsRead,
+  isAnnouncementRead,
+  getUnreadCount,
+} from '@/utils/announcements/localStorage';
+
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  published_at: string;
+  created_at: string;
+}
 
 export function AppSidebar() {
   const router = useRouter();
@@ -41,11 +67,112 @@ export function AppSidebar() {
   const chatbotSlug = params.chatbotId as string;
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  
+
   // Get chatbot configuration and theme vars
   const { chatbot, isLoading, error } = useChatConfig();
   const displayName = useChatbotDisplayName();
   const themeVars = useChatThemeVars();
+
+  // Announcements state
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Feedback state
+  const [feedbackType, setFeedbackType] = useState('');
+  const [feedbackSubject, setFeedbackSubject] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  // Fetch announcements
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      if (!chatbotSlug) return;
+
+      setAnnouncementsLoading(true);
+      try {
+        const response = await fetch(`/api/chat/${chatbotSlug}/announcements`);
+        if (response.ok) {
+          const data = await response.json();
+          setAnnouncements(data);
+
+          // Calculate unread count
+          const allIds = data.map((a: Announcement) => a.id);
+          const unread = getUnreadCount(chatbotSlug, allIds);
+          setUnreadCount(unread);
+        }
+      } catch (err) {
+        console.error('Failed to fetch announcements:', err);
+      } finally {
+        setAnnouncementsLoading(false);
+      }
+    };
+
+    fetchAnnouncements();
+  }, [chatbotSlug]);
+
+  // Mark announcement as read when viewing
+  const handleAnnouncementClick = (announcementId: string) => {
+    if (!isAnnouncementRead(chatbotSlug, announcementId)) {
+      markAnnouncementAsRead(chatbotSlug, announcementId);
+      // Recalculate unread count
+      const allIds = announcements.map(a => a.id);
+      const unread = getUnreadCount(chatbotSlug, allIds);
+      setUnreadCount(unread);
+    }
+  };
+
+  // Handle feedback submission
+  const handleSubmitFeedback = async () => {
+    if (!feedbackType || !feedbackMessage.trim()) {
+      toast.error('Please select a feedback type and enter a message');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    try {
+      // Get session ID from localStorage or generate one
+      let sessionId = localStorage.getItem('chat_session_id');
+      if (!sessionId) {
+        sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('chat_session_id', sessionId);
+      }
+
+      const response = await fetch(`/api/chat/${chatbotSlug}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          feedback_type: feedbackType,
+          subject: feedbackSubject || null,
+          message: feedbackMessage,
+          rating: feedbackRating,
+          metadata: {
+            userAgent: navigator.userAgent,
+            url: window.location.href,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback');
+      }
+
+      toast.success('Thank you for your feedback!');
+      setFeedbackOpen(false);
+
+      // Reset form
+      setFeedbackType('');
+      setFeedbackSubject('');
+      setFeedbackMessage('');
+      setFeedbackRating(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit feedback');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
 
   const renderChatbotHeader = () => {
     if (isLoading) {
@@ -184,17 +311,25 @@ export function AppSidebar() {
           {/* Announcement Section */}
           <Dialog open={announcementOpen} onOpenChange={setAnnouncementOpen}>
             <DialogTrigger asChild>
-              <SidebarMenuButton 
-                className="w-full justify-start text-muted-foreground hover:text-foreground transition-colors"
+              <SidebarMenuButton
+                className="w-full justify-start text-muted-foreground hover:text-foreground transition-colors relative"
                 onClick={() => setAnnouncementOpen(true)}
               >
                 <Bell className="mr-2 h-4 w-4" />
                 <span className="group-data-[collapsible=icon]:hidden">Announcements</span>
+                {unreadCount > 0 && (
+                  <Badge
+                    className="ml-auto group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:-right-1 group-data-[collapsible=icon]:-top-1 bg-red-500 text-white"
+                    variant="default"
+                  >
+                    {unreadCount}
+                  </Badge>
+                )}
               </SidebarMenuButton>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[600px] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="flex  items-center gap-2">
+                <DialogTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5" />
                   Announcements
                 </DialogTitle>
@@ -203,29 +338,51 @@ export function AppSidebar() {
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
-                <div className="space-y-4">
-                  <div className="border-l-4 border-blue-500 pl-4 py-2">
-                    <h4 className="font-semibold text-sm">New Chat Features</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      We've added new conversation management features to help you organize your chats better.
-                    </p>
-                    <span className="text-xs text-muted-foreground">2 days ago</span>
+                {announcementsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
                   </div>
-                  <div className="border-l-4 border-green-500 pl-4 py-2">
-                    <h4 className="font-semibold text-sm">Performance Improvements</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Chat responses are now faster and more reliable across all devices.
-                    </p>
-                    <span className="text-xs text-muted-foreground">1 week ago</span>
+                ) : announcements.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No announcements yet</p>
                   </div>
-                  <div className="border-l-4 border-purple-500 pl-4 py-2">
-                    <h4 className="font-semibold text-sm">Theme Support</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      You can now switch between light, dark, and system themes.
-                    </p>
-                    <span className="text-xs text-muted-foreground">2 weeks ago</span>
+                ) : (
+                  <div className="space-y-4">
+                    {announcements.map((announcement, index) => {
+                      const isRead = isAnnouncementRead(chatbotSlug, announcement.id);
+                      const borderColors = ['border-blue-500', 'border-green-500', 'border-purple-500', 'border-orange-500', 'border-pink-500'];
+                      const borderColor = borderColors[index % borderColors.length];
+
+                      return (
+                        <div
+                          key={announcement.id}
+                          className={`border-l-4 ${borderColor} pl-4 py-2 cursor-pointer hover:bg-muted/50 rounded transition-colors ${
+                            !isRead ? 'bg-muted/30' : ''
+                          }`}
+                          onClick={() => handleAnnouncementClick(announcement.id)}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-sm">{announcement.title}</h4>
+                            {!isRead && (
+                              <Badge variant="default" className="bg-blue-500 text-white text-xs">
+                                New
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                            {announcement.content}
+                          </p>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(announcement.published_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -233,7 +390,7 @@ export function AppSidebar() {
           {/* Feedback Section */}
           <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
             <DialogTrigger asChild>
-              <SidebarMenuButton 
+              <SidebarMenuButton
                 className="w-full justify-start text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setFeedbackOpen(true)}
               >
@@ -241,7 +398,7 @@ export function AppSidebar() {
                 <span className="group-data-[collapsible=icon]:hidden">Feedback</span>
               </SidebarMenuButton>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
@@ -254,47 +411,97 @@ export function AppSidebar() {
               <div className="py-4">
                 <div className="space-y-4">
                   <div>
-                    <label htmlFor="feedback-type" className="text-sm font-medium">
-                      Feedback Type
+                    <label htmlFor="feedback-type" className="text-sm font-medium block mb-2">
+                      Feedback Type *
                     </label>
-                    <select 
-                      id="feedback-type" 
-                      className="w-full mt-1 p-2 border border-input rounded-md bg-background"
-                    >
-                      <option value="">Select feedback type</option>
-                      <option value="bug">Bug Report</option>
-                      <option value="feature">Feature Request</option>
-                      <option value="improvement">Improvement</option>
-                      <option value="other">Other</option>
-                    </select>
+                    <Select value={feedbackType} onValueChange={setFeedbackType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select feedback type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bug">Bug Report</SelectItem>
+                        <SelectItem value="feature">Feature Request</SelectItem>
+                        <SelectItem value="improvement">Improvement</SelectItem>
+                        <SelectItem value="question">Question</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <label htmlFor="feedback-message" className="text-sm font-medium">
-                      Message
+                    <label htmlFor="feedback-subject" className="text-sm font-medium block mb-2">
+                      Subject (Optional)
                     </label>
-                    <textarea 
-                      id="feedback-message"
-                      placeholder="Tell us what's on your mind..."
-                      className="w-full mt-1 p-2 border border-input rounded-md bg-background resize-none"
-                      rows={4}
+                    <Input
+                      id="feedback-subject"
+                      value={feedbackSubject}
+                      onChange={(e) => setFeedbackSubject(e.target.value)}
+                      placeholder="Brief subject line..."
+                      maxLength={100}
                     />
                   </div>
+                  <div>
+                    <label htmlFor="feedback-rating" className="text-sm font-medium block mb-2">
+                      Rating (Optional)
+                    </label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((rating) => (
+                        <button
+                          key={rating}
+                          type="button"
+                          onClick={() => setFeedbackRating(rating)}
+                          className="transition-all"
+                        >
+                          <Star
+                            className={`h-6 w-6 ${
+                              feedbackRating && rating <= feedbackRating
+                                ? 'fill-yellow-500 text-yellow-500'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      {feedbackRating && (
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackRating(null)}
+                          className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="feedback-message" className="text-sm font-medium block mb-2">
+                      Message *
+                    </label>
+                    <Textarea
+                      id="feedback-message"
+                      value={feedbackMessage}
+                      onChange={(e) => setFeedbackMessage(e.target.value)}
+                      placeholder="Tell us what's on your mind..."
+                      rows={5}
+                      maxLength={1000}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {feedbackMessage.length}/1000 characters
+                    </p>
+                  </div>
                   <div className="flex gap-2 pt-2">
-                    <button 
-                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                      onClick={() => {
-                        // Handle feedback submission here
-                        setFeedbackOpen(false);
-                      }}
+                    <Button
+                      className="flex-1"
+                      onClick={handleSubmitFeedback}
+                      disabled={isSubmittingFeedback}
                     >
-                      Send Feedback
-                    </button>
-                    <button 
-                      className="px-4 py-2 border border-input rounded-md text-sm font-medium hover:bg-accent transition-colors"
+                      {isSubmittingFeedback ? 'Sending...' : 'Send Feedback'}
+                    </Button>
+                    <Button
+                      variant="outline"
                       onClick={() => setFeedbackOpen(false)}
+                      disabled={isSubmittingFeedback}
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

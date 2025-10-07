@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { GeneralSettingsSection } from './components/GeneralSettingsSection';
 import { AppearanceSettingsSection } from './components/AppearanceSettingsSection';
 import { BehaviorSettingsSection } from './components/BehaviorSettingsSection';
+import { RateLimitSettingsSection } from './components/RateLimitSettingsSection';
 import { SettingsDirtyProvider, useSettingsDirty } from './components/SettingsDirtyContext';
 
 function SettingsHeaderSaveButton() {
@@ -328,9 +329,12 @@ export default function UnifiedSettingsPage() {
                 </TabsContent>
 
                 <TabsContent value="behavior" className="mt-0">
-            <div className="px-6 pt-4 pb-6">
+            <div className="px-6 pt-4 pb-6 space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200/60 p-6">
                   <BehaviorSettingsSection chatbot={chatbot || undefined} chatbotId={chatbotId} />
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200/60 p-6">
+                  <RateLimitSettingsSection chatbot={chatbot || undefined} chatbotId={chatbotId} />
               </div>
           </div>
           </TabsContent>

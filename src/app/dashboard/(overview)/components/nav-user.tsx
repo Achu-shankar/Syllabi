@@ -10,6 +10,8 @@ import {
   User as AccountIcon,
   SignOut as LogOut,
 } from "@phosphor-icons/react";
+import { Sun, Moon, Laptop } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import {
   Avatar,
@@ -47,9 +49,12 @@ interface User {
 export function NavUser() {
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [mounted, setMounted] = React.useState(false);
+  const { theme, setTheme } = useTheme();
   // const { isMobile } = useSidebar(); // Keep if needed for DropdownMenu side prop
 
   React.useEffect(() => {
+    setMounted(true);
     const fetchUser = async () => {
       const supabase = createClient();
       const { data, error } = await supabase.auth.getUser();
@@ -144,15 +149,34 @@ export function NavUser() {
                   Billing
                 </Link>
               </DropdownMenuItem>
-              {/* Add other items like Notifications if needed */}
-              {/* <DropdownMenuItem asChild>
-                <Link href="/dashboard/notifications">
-                  <Bell className="mr-2 h-4 w-4" />
-                Notifications
-                </Link>
-              </DropdownMenuItem> */}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {mounted && (
+              <>
+                <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
+                  Theme
+                </DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setTheme("light")} className="flex items-center">
+                    <Sun className="mr-2 h-4 w-4" />
+                    Light
+                    {theme === "light" && <span className="ml-auto">✓</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("dark")} className="flex items-center">
+                    <Moon className="mr-2 h-4 w-4" />
+                    Dark
+                    {theme === "dark" && <span className="ml-auto">✓</span>}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("system")} className="flex items-center">
+                    <Laptop className="mr-2 h-4 w-4" />
+                    System
+                    {theme === "system" && <span className="ml-auto">✓</span>}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            
             <DropdownMenuItem asChild>
               <form action={signOutAction} className="w-full">
                 <button type="submit" className="flex items-center w-full text-left p-0 m-0 bg-transparent border-none text-sm">

@@ -1,6 +1,6 @@
 'use client';
 
-import type { UIMessage } from 'ai';
+import type { Attachment, UIMessage } from 'ai';
 import cx from 'classnames';
 import type React from 'react';
 import {
@@ -9,12 +9,15 @@ import {
   useState,
   useCallback,
   memo,
+  type Dispatch,
+  type SetStateAction,
+  type ChangeEvent,
 } from 'react';
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { PaperclipIcon, StopIcon, SendIcon, DocIcon } from './icons';
-// import { PreviewAttachment } from './preview-attachment'; // FUTURE: Re-enable for file uploads
+import { PreviewAttachment } from './messages/preview-attachment';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -23,7 +26,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { SuggestedActions } from './suggested-actions';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { useContentSources } from '../lib/hooks/useContentSources';
-import { Search, X } from 'lucide-react';
+import { Search, X, FolderOpen } from 'lucide-react';
+import equal from 'fast-deep-equal';
 
 function PureMultimodalInput({
   chatId,
@@ -32,8 +36,8 @@ function PureMultimodalInput({
   setInput,
   status,
   stop,
-  // attachments, // FUTURE: Re-enable for file uploads
-  // setAttachments, // FUTURE: Re-enable for file uploads
+  attachments = [],
+  setAttachments,
   messages,
   setMessages,
   append,
@@ -46,8 +50,8 @@ function PureMultimodalInput({
   setInput: UseChatHelpers['setInput'];
   status: UseChatHelpers['status'];
   stop: () => void;
-  // attachments: Array<Attachment>; // FUTURE: Re-enable for file uploads
-  // setAttachments: Dispatch<SetStateAction<Array<Attachment>>>; // FUTURE: Re-enable for file uploads
+  attachments?: Array<Attachment>;
+  setAttachments?: Dispatch<SetStateAction<Array<Attachment>>>;
   messages: Array<UIMessage>;
   setMessages: UseChatHelpers['setMessages'];
   append: UseChatHelpers['append'];
@@ -55,7 +59,9 @@ function PureMultimodalInput({
   className?: string;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { width } = useWindowSize();
+  const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   // Document selection state
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
@@ -141,29 +147,44 @@ function PureMultimodalInput({
   );
 
   const submitForm = useCallback(() => {
+    // Don't submit if there's no input and no attachments
+    if (!input.trim() && (!attachments || attachments.length === 0)) {
+      toast.error('Please enter a message or attach a file');
+      return;
+    }
+
     // Update the URL to reflect the current chat session
     window.history.replaceState({}, '', `/chat/${chatbotSlug}/${chatId}`);
 
-    // Submit the form with any configured body parameters (including chatbotSlug and selected documents)
-    handleSubmit(undefined, {
-      body: {
-        chatbotSlug: chatbotSlug,
-        selectedDocuments: selectedDocuments.length > 0 ? selectedDocuments : undefined,
-      },
-      // experimental_attachments: attachments, // FUTURE: Re-enable for file uploads
-    });
+    try {
+      // Submit the form with any configured body parameters (including chatbotSlug and selected documents)
+      handleSubmit(undefined, {
+        body: {
+          chatbotSlug: chatbotSlug,
+          selectedDocuments: selectedDocuments.length > 0 ? selectedDocuments : undefined,
+        },
+        experimental_attachments: attachments,
+      });
 
-    // setAttachments([]); // FUTURE: Re-enable for file uploads
-    setLocalStorageInput('');
-    resetHeight();
+      // Clear attachments after successful submission
+      if (setAttachments) {
+        setAttachments([]);
+      }
+      setLocalStorageInput('');
+      resetHeight();
 
-    if (width && width > 768) {
-      textareaRef.current?.focus();
+      if (width && width > 768) {
+        textareaRef.current?.focus();
+      }
+    } catch (error) {
+      console.error('Error submitting message:', error);
+      toast.error('Failed to send message');
     }
   }, [
-    // attachments, // FUTURE: Re-enable for file uploads
+    input,
+    attachments,
     handleSubmit,
-    // setAttachments, // FUTURE: Re-enable for file uploads
+    setAttachments,
     setLocalStorageInput,
     width,
     chatId,
@@ -171,10 +192,11 @@ function PureMultimodalInput({
     selectedDocuments,
   ]);
 
-  /* FUTURE: Re-enable for file uploads
+  // File upload handling
   const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('sessionId', chatId); // Pass the session ID
 
     try {
       const response = await fetch('/api/files/upload', {
@@ -184,47 +206,92 @@ function PureMultimodalInput({
 
       if (response.ok) {
         const data = await response.json();
-        const { url, pathname, contentType } = data;
+        const { url, name, contentType, size } = data;
 
         return {
           url,
-          name: pathname,
-          contentType: contentType,
+          name: name || file.name,
+          contentType: contentType || file.type,
+          size,
         };
       }
-      const { error } = await response.json();
-      toast.error(error);
+      
+      // Handle error response
+      const errorData = await response.json();
+      const errorMessage = errorData.error || 'Upload failed';
+      toast.error(errorMessage);
+      console.error('Upload failed:', errorMessage);
+      return null;
     } catch (error) {
+      console.error('Upload error:', error);
       toast.error('Failed to upload file, please try again!');
+      return null;
     }
   };
 
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
+      if (!setAttachments) return;
+      
       const files = Array.from(event.target.files || []);
 
-      setUploadQueue(files.map((file) => file.name));
+      if (files.length === 0) return;
+
+      // Show upload toast
+      const uploadToast = toast.loading(
+        `Uploading ${files.length} file${files.length > 1 ? 's' : ''}...`
+      );
 
       try {
-        const uploadPromises = files.map((file) => uploadFile(file));
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment) => attachment !== undefined,
-        );
+        // Upload files sequentially to avoid overwhelming the server
+        const uploadedAttachments: Array<Attachment> = [];
+        
+        for (const file of files) {
+          const result = await uploadFile(file);
+          if (result) {
+            uploadedAttachments.push(result);
+          }
+        }
 
-        setAttachments((currentAttachments) => [
-          ...currentAttachments,
-          ...successfullyUploadedAttachments,
-        ]);
+        if (uploadedAttachments.length > 0) {
+          setAttachments((currentAttachments) => [
+            ...currentAttachments,
+            ...uploadedAttachments,
+          ]);
+          
+          // Update success toast
+          toast.success(
+            `Successfully uploaded ${uploadedAttachments.length} file${uploadedAttachments.length > 1 ? 's' : ''}`,
+            { id: uploadToast }
+          );
+        } else {
+          toast.error('No files were uploaded successfully', { id: uploadToast });
+        }
+
+        // Handle partial failures
+        const failedCount = files.length - uploadedAttachments.length;
+        if (failedCount > 0 && uploadedAttachments.length > 0) {
+          toast.warning(`${failedCount} file${failedCount > 1 ? 's' : ''} failed to upload`);
+        }
+
       } catch (error) {
         console.error('Error uploading files!', error);
-      } finally {
-        setUploadQueue([]);
+        toast.error('Failed to upload files', { id: uploadToast });
+      }
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     },
-    [setAttachments],
+    [setAttachments, chatId],
   );
-  */
+
+  const removeAttachment = (index: number) => {
+    if (setAttachments) {
+      setAttachments((current) => current.filter((_, i) => i !== index));
+    }
+  };
 
   return (
     <div 
@@ -233,7 +300,7 @@ function PureMultimodalInput({
     >
       {/* Removed SuggestedActions from here */}
 
-      {/* FUTURE: Re-enable for file uploads
+      {/* File input for uploads */}
       <input
         type="file"
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
@@ -241,15 +308,22 @@ function PureMultimodalInput({
         multiple
         onChange={handleFileChange}
         tabIndex={-1}
+        accept="image/*,application/pdf,.txt,.md,.csv,.xls,.xlsx"
       />
 
+      {/* Attachment Preview Area */}
       {(attachments.length > 0 || uploadQueue.length > 0) && (
         <div
           data-testid="attachments-preview"
-          className="flex flex-row gap-2 overflow-x-scroll items-end"
+          className="flex flex-row gap-2 overflow-x-scroll items-end p-3 bg-muted/30 rounded-lg border border-border"
         >
-          {attachments.map((attachment) => (
-            <PreviewAttachment key={attachment.url} attachment={attachment} />
+          {attachments.map((attachment, index) => (
+            <PreviewAttachment 
+              key={attachment.url} 
+              attachment={attachment} 
+              showActions={true}
+              onRemove={() => removeAttachment(index)}
+            />
           ))}
 
           {uploadQueue.map((filename) => (
@@ -265,7 +339,6 @@ function PureMultimodalInput({
           ))}
         </div>
       )}
-      */}
 
       <div className="relative ">
         {/* Selected Documents - Separated section above input */}
@@ -308,10 +381,12 @@ function PureMultimodalInput({
         placeholder="Ask a question..."
         value={input}
         onChange={handleInput}
+        disabled={status !== 'ready'}
         className={cx(
             'min-h-[32px] sm:min-h-[36px] max-h-[calc(75dvh)] overflow-hidden resize-none !text-base pb-8 sm:pb-10 w-full transition-all duration-200',
             '[&:focus]:ring-0 [&:focus]:outline-none [&:focus-visible]:ring-0 [&:focus-visible]:outline-none [&:focus]:shadow-none',
             selectedDocuments.length > 0 ? 'rounded-b-3xl rounded-t-none border-t-0' : 'rounded-3xl',
+            status !== 'ready' ? 'opacity-60 cursor-not-allowed' : '',
           className,
         )}
         style={{
@@ -346,8 +421,30 @@ function PureMultimodalInput({
       </div>
       */}
 
-        {/* Document Selection Button */}
-        <div className="absolute bottom-0 left-0 p-2.5 w-fit flex flex-row justify-start">
+        {/* File Upload and Document Selection Buttons */}
+        <div className="absolute bottom-0 left-0 p-2.5 w-fit flex flex-row justify-start gap-1">
+          {/* File Upload Button */}
+          {setAttachments && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`rounded-full p-2.5 h-fit transition-all duration-200 ${
+                attachments.length > 0 
+                  ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                  : 'hover:bg-gray-100'
+              }`}
+              disabled={status !== 'ready'}
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload external files"
+            >
+              <PaperclipIcon size={16} />
+              {attachments.length > 0 && (
+                <span className="ml-1 text-xs font-medium">
+                  {attachments.length}
+                </span>
+              )}
+            </Button>
+          )}
           <Popover open={isDocumentPopoverOpen} onOpenChange={setIsDocumentPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -359,8 +456,9 @@ function PureMultimodalInput({
                     : 'hover:bg-gray-100'
                 }`}
                 disabled={status !== 'ready' || isLoadingDocuments}
+                title="Select existing documents"
               >
-                <PaperclipIcon size={16} />
+                <FolderOpen size={16} />
                 {selectedDocuments.length > 0 && (
                   <span className="ml-1 text-xs font-medium">
                     {selectedDocuments.length}
@@ -456,14 +554,14 @@ function PureMultimodalInput({
         </div>
 
         <div className="absolute bottom-0 right-0 p-2.5 w-fit flex flex-row justify-end">
-        {status === 'submitted' ? (
+        {status === 'submitted' || status === 'streaming' ? (
           <StopButton stop={stop} setMessages={setMessages} />
         ) : (
           <SendButton
             input={input}
             submitForm={submitForm}
-            // uploadQueue={uploadQueue} // FUTURE: Re-enable for file uploads
-            uploadQueue={[]} // Temporary empty array to maintain prop structure
+            uploadQueue={uploadQueue}
+            attachments={attachments}
           />
         )}
       </div>
@@ -482,7 +580,7 @@ export const MultimodalInput = memo(
   (prevProps, nextProps) => {
     if (prevProps.input !== nextProps.input) return false;
     if (prevProps.status !== nextProps.status) return false;
-    // if (!equal(prevProps.attachments, nextProps.attachments)) return false; // FUTURE: Re-enable for file uploads
+    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
 
     return true;
   },
@@ -543,26 +641,28 @@ function PureSendButton({
   submitForm,
   input,
   uploadQueue,
+  attachments = [],
 }: {
   submitForm: () => void;
   input: string;
   uploadQueue: Array<string>;
+  attachments?: Array<Attachment>;
 }) {
   return (
     <Button
       data-testid="send-button"
       className="rounded-full p-2.5 h-fit border-0 disabled:bg-gray-300 disabled:cursor-not-allowed text-white shadow-sm hover:shadow-md transition-all duration-200"
       style={{
-        backgroundColor: input.length > 0 && uploadQueue.length === 0 
+        backgroundColor: (input.length > 0 || attachments.length > 0) && uploadQueue.length === 0 
           ? 'var(--chat-primary-color, #007bff)' 
           : undefined,
-        opacity: input.length === 0 || uploadQueue.length > 0 ? 0.5 : 1,
+        opacity: (input.length === 0 && attachments.length === 0) || uploadQueue.length > 0 ? 0.5 : 1,
       }}
       onClick={(event) => {
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
+      disabled={(input.length === 0 && attachments.length === 0) || uploadQueue.length > 0}
     >
       <SendIcon size={16} />
     </Button>
@@ -573,5 +673,6 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.uploadQueue.length !== nextProps.uploadQueue.length)
     return false;
   if (prevProps.input !== nextProps.input) return false;
+  if (!equal(prevProps.attachments, nextProps.attachments)) return false;
   return true;
 });

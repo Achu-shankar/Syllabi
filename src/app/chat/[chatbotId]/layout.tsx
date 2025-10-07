@@ -46,7 +46,7 @@ function ChatHeader({
 }: {
   themeVars: any;
   isEbookPanelOpen: boolean;
-  handleToggleEbook: () => void;
+  handleToggleEbook: (isMobile: boolean) => void;
   showEbookHint: boolean;
   setShowEbookHint: (show: boolean) => void;
   applyPreset: (chatSize: number, documentSize: number) => void;
@@ -202,7 +202,7 @@ function ChatHeader({
           }}>
             <TooltipTrigger asChild>
               <button 
-                onClick={handleToggleEbook} 
+                onClick={() => handleToggleEbook(isMobileSidebar)} 
                 className={`relative p-1 px-3 text-sm rounded-lg transition-all duration-200 flex items-center gap-2 ${
                   isEbookPanelOpen 
                     ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md' 
@@ -383,11 +383,22 @@ function ChatLayoutContent({ children, slug }: { children: React.ReactNode; slug
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isEbookPanelOpen, isChatHidden, applyPreset, toggleChatVisibility]);
 
-  const handleToggleEbook = () => {
+  const handleToggleEbook = (isMobile: boolean) => {
     if (isEbookPanelOpen) {
       closeEbookPanel();
+      // On mobile, restore chat visibility when closing document library
+      if (isMobile && isChatHidden) {
+        toggleChatVisibility();
+      }
     } else {
-      openEbookPanel(); 
+      openEbookPanel();
+      // On mobile, automatically hide chat to show document at full width
+      // Delay to allow panels to initialize first
+      if (isMobile && !isChatHidden) {
+        setTimeout(() => {
+          toggleChatVisibility();
+        }, 1);
+      }
     }
   };
 

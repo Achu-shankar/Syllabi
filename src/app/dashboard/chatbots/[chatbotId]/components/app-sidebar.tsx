@@ -8,7 +8,9 @@ import {
   Gear,
   Layout,
   ShareNetwork,
-  ChatCircleDots, // New Icon
+  ChatCircleDots,
+  Megaphone,
+  ChatCenteredDots,
 } from "@phosphor-icons/react"
 
 import { NavMain } from "@/app/dashboard/(overview)/components/nav-main"
@@ -48,6 +50,16 @@ export function AppSidebar({ chatbotId, ...props }: AppSidebarProps) {
       url: `/dashboard/chatbots/${chatbotId}/analytics`,
       icon: ChartBar,
   },
+  {
+      title: "Announcements",
+      url: `/dashboard/chatbots/${chatbotId}/announcements`,
+      icon: Megaphone,
+    },
+    {
+      title: "User Feedback",
+      url: `/dashboard/chatbots/${chatbotId}/feedback`,
+      icon: ChatCenteredDots,
+    },
   {
       title: "Settings",
       icon: Gear,
