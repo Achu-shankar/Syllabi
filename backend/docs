@@ -1,0 +1,57 @@
+Things to remember
+-------------------
+
+In afforai they are extracting book info from openlibrary
+They do have ocr capability but limited to less than 128 pages.
+
+Things to updated
+-----------------------
+Documents processing
+  - remove fitz dependency and use something else( fitz is not free for commerical use)
+  - generate file thumbnail
+  - documment summarisation endpoint
+  - ability to upload youtube urls, and audio clips
+  - google drive and docs integration
+
+
+Endpoints required
+-------------------
+Reference manager
+Any sort of citation generation is done in the frontend no api calls
+ -- documment summarisation endpoint -SSE
+ -- attach_file -SSE
+ -- attach_url-SSE ( these two are to add files for empty citaitons)
+ -- empty_citations
+ -- citations endpoint ( to add citations to db) (SSE)
+ -- scan endpoint which only extracts metadata for Documents ( this is to re extract and populate metadata)
+ -- discover citations ( basically we can use our current citations to search for more citations)
+ -- move_files ( to move files into different folders)
+ -- folder (createa new folder inside the paraent folder) 
+    -- POST end point to create the folder
+    -- DELETE endpoint to delete the folder ( also has as seperate option to delete the files inside (basically moves it to trash))
+  
+ -- move_folder (moves a folder to a different desitinatoin folder)
+ -- move_files ( moves a file to different folderrs) ( accespts multiple files)
+ -- pdf/read_url to download the pdf
+ -- delete_files (to delete the list of files)
+ -- trash_files (moves to trash)
+ -- file ( updates file info inlcudeing adding tags, updating citations(csl_item) etc)
+ -- tag
+     -PUT (create and update tags)
+     -DELETE ( deletes a tag)
+ -- api.crossref to get extract paper info form doi
+ -- library - creates a new library
+    sharing related endpoints -  ability to create shared libs and all.
+    -- invites
+    -- members
+
+ 
+pdf viewer and annotations
+----------------------------
+  -- anotations endpoints 
+     -- GET gets all the annotations for a particular file
+     annotations/text, annotations/area, annotations/quick
+
+misc
+---------------------------
+- user_config endopint to update user settings
