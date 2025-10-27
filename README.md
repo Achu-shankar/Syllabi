@@ -44,7 +44,7 @@ An open-source AI-powered chatbot platform with advanced knowledge base integrat
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/syllabi.git
+git clone https://github.com/Achu-shankar/Syllabi.git
 cd syllabi
 ```
 
@@ -69,9 +69,28 @@ uvicorn app.main:app --reload
 ```
 
 4. **Setup Database**
-- Create a Supabase project
-- Run the SQL migrations from `frontend/supabase/migrations/`
-- Configure RLS policies
+
+**Option 1: Quick Setup with Schema File (Recommended)**
+
+Create a Supabase project at [supabase.com](https://supabase.com), then run the complete schema:
+
+1. Go to Supabase Dashboard → SQL Editor
+2. Open `frontend/supabase/schema.sql` file
+3. Copy the entire contents
+4. Paste into SQL Editor and click "Run"
+
+This will create all tables, indexes, RLS policies, and functions in one go.
+
+**Option 2: Using Supabase CLI**
+```bash
+cd frontend
+supabase link --project-ref your-project-ref
+supabase db push
+```
+
+**Option 3: Individual Migration Files**
+- Run SQL files from `frontend/supabase/migrations/` one by one
+- Useful for understanding incremental changes during development
 
 ## 📖 Documentation
 
@@ -97,9 +116,9 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ## 📧 Contact
 
-- GitHub Issues: [Report bugs or request features](https://github.com/YOUR_USERNAME/syllabi/issues)
+- GitHub Issues: [Report bugs or request features](https://github.com/Achu-shankar/Syllabi/issues)
 - Discord: [Join our community](#)
 
 ---
 
-Made with ❤️ by the Syllabi team
+Made with ❤️ by Achu Shankar
